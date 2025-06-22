@@ -1,0 +1,122 @@
+{
+  "timestamp": "2025-06-22T18:15:05.234402",
+  "device": "mps",
+  "epochs": 1,
+  "dataset_info": {
+    "name": "Darcy Flow",
+    "description": "2D steady-state Darcy flow equation with variable permeability",
+    "equation": "\u2207 \u00b7 (\u03ba(x)\u2207p(x)) = f(x)",
+    "input": "Permeability field \u03ba(x)",
+    "output": "Pressure field p(x)",
+    "grid_resolution": "32\u00d732",
+    "n_train_samples": 100,
+    "n_test_samples": 50,
+    "batch_size": 4,
+    "spatial_domain": "[0, 1]\u00b2",
+    "n_grid_points": 1024,
+    "n_sensors": 100
+  },
+  "models": [
+    {
+      "name": "FNOOperator_32x32",
+      "model_info": {
+        "name": "Fourier Neural Operator (FNO)",
+        "architecture": {
+          "type": "Spectral convolution in Fourier space",
+          "grid_size": "32\u00d732",
+          "n_modes": [
+            16,
+            16
+          ],
+          "hidden_channels": 32,
+          "n_layers": 3,
+          "lifting_channels": 32,
+          "projection_channels": 32
+        },
+        "parameters": 453361,
+        "optimizer": "Adam",
+        "learning_rate": 0.001
+      },
+      "metrics": {
+        "mse": 0.11625383851619867,
+        "mae": 0.2765457515533154,
+        "rel_l2": 0.6461546558600205,
+        "wall_sec": 1.2242670059204102,
+        "avg_time_per_epoch": 1.2242670059204102
+      },
+      "plot_path": "figs/FNOOperator_32x32.png"
+    },
+    {
+      "name": "DeepONetOperator_32x32",
+      "model_info": {
+        "name": "Deep Operator Network (DeepONet)",
+        "architecture": {
+          "type": "Branch-Trunk neural network",
+          "grid_size": "32\u00d732",
+          "branch_input_size": 100,
+          "trunk_input_size": 2,
+          "hidden_size": 128,
+          "num_layers": 4,
+          "n_sensors": 1000,
+          "actual_sensors": 100
+        },
+        "parameters": 145409,
+        "optimizer": "Adam",
+        "learning_rate": 0.001
+      },
+      "metrics": {
+        "mse": 0.11068823704352745,
+        "mae": 0.267190620303154,
+        "rel_l2": 0.6282039880752563,
+        "wall_sec": 0.46932196617126465,
+        "avg_time_per_epoch": 0.46932196617126465
+      },
+      "plot_path": "figs/DeepONetOperator_32x32.png"
+    },
+    {
+      "name": "PyKANOperator_16x16",
+      "model_info": {
+        "name": "PyKAN_32x32",
+        "architecture": {
+          "width": [
+            [
+              1024,
+              0
+            ],
+            [
+              10,
+              0
+            ],
+            [
+              1024,
+              0
+            ]
+          ],
+          "hidden_neurons": 10
+        },
+        "parameters": 286720,
+        "optimizer": "Adam",
+        "learning_rate": 0.001
+      },
+      "metrics": {
+        "mse": 0.21106031594368127,
+        "mae": 0.33135953545570374,
+        "rel_l2": 0.870420882335076,
+        "wall_sec": 655.6105527877808,
+        "avg_time_per_epoch": 655.6105527877808
+      },
+      "plot_path": "figs/PyKANOperator_32x32.png"
+    }
+  ],
+  "training_history": {
+    "FNOOperator_32x32": [
+      0.14758445233106612
+    ],
+    "DeepONetOperator_32x32": [
+      0.12318923711776733
+    ],
+    "PyKANOperator_16x16": [
+      0.2442214632034302
+    ]
+  }
+}
