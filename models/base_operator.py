@@ -1,5 +1,6 @@
 import torch
 from abc import ABC, abstractmethod
+from typing import Union, Dict, Any
 from typing import Dict, Any
 
 class BaseOperator(ABC):
@@ -24,6 +25,11 @@ class BaseOperator(ABC):
     @abstractmethod
     def get_model_info(self) -> Dict[str, Any]:
         """Return model architecture information"""
+        ...
+
+    @abstractmethod
+    def train_epoch(self, train_loader: torch.utils.data.DataLoader, 
+                    val_loader: torch.utils.data.DataLoader = None) -> Union[float, Dict[str, float]]:
         ...
 
     # ----------------------------------------------------

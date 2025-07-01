@@ -1,4 +1,3 @@
-
 import time
 import json
 import torch
@@ -17,7 +16,12 @@ def mae(p, y):
 def rel_l2(p, y):
     return (torch.linalg.vector_norm(p - y) / torch.linalg.vector_norm(y)).item()
 
-METRICS = dict(mse=mse, mae=mae, rel_l2=rel_l2)
+def accuracy(p, y, threshold=0.1):
+    """Compute accuracy as percentage of predictions within threshold of true values"""
+    rel_error = torch.abs(p - y) / (torch.abs(y) + 1e-8)
+    return (rel_error < threshold).float().mean().item() * 100
+
+METRICS = dict(mse=mse, mae=mae, rel_l2=rel_l2, accuracy=accuracy)
 
 class BenchmarkRunner:
     def __init__(self, models: Sequence[BaseOperator], dm: DataModule, epochs: int = 25):
@@ -26,26 +30,54 @@ class BenchmarkRunner:
         self.epochs = epochs
         self.vis = Visualizer(dm)
         self.train_history = {}
+        self.accuracy_history = {}  # AGREGADO: Para almacenar historial de accuracy
 
     def run(self):
         results = []
         
         for m in self.models:
             model_name = f"{m.__class__.__name__}_{m.grid_size}x{m.grid_size}"
-            print(f"\n===== {model_name} =====")
+            #print(f"\n===== {model_name} =====")
             m.setup(self.dm.info)
             
             train_losses = []
+            train_accuracies = []      # AGREGADO: Para almacenar accuracy de entrenamiento
+            val_accuracies = []        # AGREGADO: Para almacenar accuracy de validación
             
             t0 = time.time()
             for ep in range(1, self.epochs + 1):
-                tr_loss = m.train_epoch(self.dm.train)
-                train_losses.append(tr_loss)
+                # MODIFICADO: Pasar tanto train como test loader
+                epoch_metrics = m.train_epoch(self.dm.train, self.dm.test)
+                
+                # MODIFICADO: Manejar tanto el formato viejo (float) como el nuevo (dict)
+                if isinstance(epoch_metrics, dict):
+                    train_losses.append(epoch_metrics['train_loss'])
+                    train_accuracies.append(epoch_metrics['train_accuracy'])
+                    val_accuracies.append(epoch_metrics.get('val_accuracy', 0))
+                    tr_loss = epoch_metrics['train_loss']
+                else:
+                    # Compatibilidad hacia atrás
+                    tr_loss = epoch_metrics
+                    train_losses.append(tr_loss)
+                    train_accuracies.append(0)  # Sin datos de accuracy
+                    val_accuracies.append(0)
+                
                 if ep % 5 == 0:
-                    print(f"  epoch {ep:02d}/{self.epochs}  train_loss={tr_loss:.4e}")
+                    if isinstance(epoch_metrics, dict):
+                        print(f"  epoch {ep:02d}/{self.epochs}  train_loss={tr_loss:.4e}  " + 
+                              f"train_acc={epoch_metrics['train_accuracy']:.1f}%  " +
+                              f"val_acc={epoch_metrics.get('val_accuracy', 0):.1f}%")
+                    else:
+                        print(f"  epoch {ep:02d}/{self.epochs}  train_loss={tr_loss:.4e}")
+                        
             wall = time.time() - t0
             
             self.train_history[model_name] = train_losses
+            # AGREGADO: Almacenar historial de accuracy
+            self.accuracy_history[model_name] = {
+                'train': train_accuracies,
+                'validation': val_accuracies
+            }
             
             metrics = m.eval(self.dm.test, METRICS)
             metrics["wall_sec"] = wall
@@ -94,6 +126,14 @@ class BenchmarkRunner:
             "training_history": {
                 model: [float(loss) for loss in losses] 
                 for model, losses in self.train_history.items()
+            },
+            # AGREGADO: Incluir historial de accuracy en el JSON
+            "accuracy_history": {
+                model: {
+                    split: [float(acc) for acc in accs]
+                    for split, accs in history.items()
+                }
+                for model, history in self.accuracy_history.items()
             }
         }
         

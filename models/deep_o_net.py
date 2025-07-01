@@ -73,15 +73,13 @@ class DeepONetOperator(BaseOperator):
         return flat[:, self.sensor_idx]
 
     # main interface ------------------------------------
-    def train_epoch(self, loader):
+    def train_epoch(self, train_loader, val_loader=None):
         self.model.train()
-        run = 0.0
-        print(f"loader : {len(loader)}")
-        for batch in loader:
+        running_loss = 0.0
+        running_accuracy = 0.0
+        
+        for batch in train_loader:
             self.opt.zero_grad()
-
-            # PRINT la forma original del tensor Y antes de aplanarlo
-            print("batch['y'] shape (antes de flatten):", batch["y"].shape)
 
             branch = self._take_sensors(batch["x"].to(self.device))
             pred = self.model(branch, self.trunk)  # [B, grid_size^2]
@@ -92,9 +90,54 @@ class DeepONetOperator(BaseOperator):
 
             loss = self.loss(pred, tgt)
             loss.backward()
+            
+            # Calcular accuracy para el batch actual
+            batch_accuracy = self._calculate_accuracy(pred, tgt)
+            running_accuracy += batch_accuracy
+            
             self.opt.step()
-            run += loss.item()
-        return run / len(loader)
+            running_loss += loss.item()
+        
+        # Calcular métricas promedio
+        avg_train_loss = running_loss / len(train_loader)
+        avg_train_accuracy = running_accuracy / len(train_loader)
+        
+        # Calcular accuracy de validación si se proporciona val_loader
+        val_accuracy = 0.0
+        if val_loader is not None:
+            val_accuracy = self._evaluate_accuracy(val_loader)
+        
+        return {
+            'train_loss': avg_train_loss,
+            'train_accuracy': avg_train_accuracy,
+            'val_accuracy': val_accuracy
+        }
+
+    def _calculate_accuracy(self, pred, target, threshold=0.1):
+        """Calcular accuracy como porcentaje de predicciones dentro del threshold"""
+        rel_error = torch.abs(pred - target) / (torch.abs(target) + 1e-8)
+        accuracy = (rel_error < threshold).float().mean().item() * 100
+        return accuracy
+
+    @torch.no_grad()
+    def _evaluate_accuracy(self, val_loader):
+        """Evaluar accuracy en el conjunto de validación"""
+        self.model.eval()
+        total_accuracy = 0.0
+        
+        for batch in val_loader:
+            branch = self._take_sensors(batch["x"].to(self.device))
+            pred = self.model(branch, self.trunk)
+            
+            tgt = batch["y"].to(self.device)
+            B = tgt.shape[0]
+            tgt = tgt.view(B, -1)
+            
+            batch_accuracy = self._calculate_accuracy(pred, tgt)
+            total_accuracy += batch_accuracy
+        
+        self.model.train()  # Volver a modo entrenamiento
+        return total_accuracy / len(val_loader)
 
     def predict(self, batch):
         branch = self._take_sensors(batch["x"].to(self.device))
