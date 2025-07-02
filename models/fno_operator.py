@@ -70,7 +70,8 @@ class FNOBlock(nn.Module):
 class FNOOperator(BaseOperator):
     """FNO optimized for very small datasets following Li et al. recommendations"""
 
-    def __init__(self, device, grid_size=32,
+    def __init__(self,
+                 device, name="", grid_size=32,
                  modes=6,               
                  width=20,              
                  n_layers=4,            
@@ -88,10 +89,11 @@ class FNOOperator(BaseOperator):
                  
                  # Architecture choices
                  share_weights=False,    
-                 activation='gelu'):     # GELU as in paper
+                 activation='gelu',):     # GELU as in paper
 
         super().__init__(device, grid_size)
         
+        self.name = name
         self.modes = modes
         self.width = width
         self.n_layers = n_layers
@@ -407,7 +409,7 @@ class FNOOperator(BaseOperator):
         trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         
         return {
-            "name": "FNO_LiEtAl_AccuracyMethod",
+            "name": f"{self.name}_{self.grid_size}x{self.grid_size}",
             "architecture": {
                 "grid": f"{self.grid_size}×{self.grid_size}",
                 "modes": self.modes,
@@ -430,8 +432,8 @@ class FNOOperator(BaseOperator):
 class FNOEnsembleOperator(FNOOperator):
     """Ensemble of FNO models for better accuracy (simplified SpecBoost)"""
     
-    def __init__(self, device, grid_size=32, n_models=2, **kwargs):
-        super().__init__(device, grid_size, **kwargs)
+    def __init__(self, device,name="", grid_size=32, n_models=2, **kwargs):
+        super().__init__(device, name, grid_size, **kwargs)
         self.n_models = n_models
         
     def setup(self, data_info):
@@ -525,7 +527,7 @@ class FNOEnsembleOperator(FNOOperator):
         trainable_params = sum(p.numel() for p in self.models[0].parameters() if p.requires_grad)
         
         return {
-            "name": f"FNO_Ensemble_{self.n_models}models_LiAccuracy",
+            "name": self.name,
             "architecture": {
                 "grid": f"{self.grid_size}×{self.grid_size}",
                 "modes": self.modes,

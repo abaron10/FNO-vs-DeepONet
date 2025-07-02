@@ -21,7 +21,7 @@ if __name__ == "__main__":
         device = torch.device("mps")
     print(f"Using device: {device}")
     
-    GRID_SIZE = 32
+    GRID_SIZE = 64
     
     # CORRECTED: Use proper data sizes
     TRAIN_SIZE = 500
@@ -51,7 +51,8 @@ if __name__ == "__main__":
     models = [
         # Model 1: Standard FNO with very few modes (best for small data)
         FNOOperator(
-            device, 
+            device,
+            "Standard_FNO", 
             grid_size=GRID_SIZE,
             modes=6,                # Very few modes as recommended
             width=20,               # Narrow width for small dataset
@@ -69,6 +70,7 @@ if __name__ == "__main__":
         # Model 2: Even smaller FNO with shared weights
         FNOOperator(
             device,
+            "Smaller_FNO_shared_weights",
             grid_size=GRID_SIZE,
             modes=4,                # Even fewer modes
             width=16,               # Even narrower
@@ -87,6 +89,7 @@ if __name__ == "__main__":
         # Model 3: Ensemble approach (simplified SpecBoost)
         FNOEnsembleOperator(
             device,
+            "Ensemble_FNO",
             grid_size=GRID_SIZE,
             n_models=2,             # 2 models in ensemble
             modes=5,
@@ -99,31 +102,10 @@ if __name__ == "__main__":
     ]
     
     # Run benchmark
-    runner = BenchmarkRunner(models, dm, epochs=500)
+    runner = BenchmarkRunner(models, dm, epochs=125)
     runner.device = device  
-    
-    print("\n🚀 Starting training with Li et al. optimizations...")
-    print("   Key features:")
-    print("   - Very few Fourier modes (4-6) to avoid overfitting")
-    print("   - Narrow architecture (width 16-20)")
-    print("   - Data augmentation (flips)")
-    print("   - Proper grid encoding (adds 2 channels for x,y coordinates)")
-    print("   - Step learning rate decay")
-    print(f"\n   Note: Model will use {detected_channels} input channel(s) + 2 grid channels = {detected_channels + 2} total")
-    print("\n   📊 Accuracy calculation follows Li et al.:")
-    print("      Accuracy = 100 × (1 - relative_L2_error)")
-    print("      where relative_L2_error = ||pred - true||₂ / ||true||₂")
-    print("\n   ⚠️  IMPORTANT:")
-    print("      - This is NOT percentage of correct predictions!")
-    print("      - Accuracy CAN be negative (if L2 error > 100%)")
-    print("      - Accuracy should NOT exceed 100% (if it does, there's a bug)")
-    
     scores = runner.run()
     
-    # Enhanced results display
-    print("\n" + "="*60)
-    print("📊 BENCHMARK RESULTS")
-    print("="*60)
     
     best_accuracy = -float('inf')  # Can be negative!
     best_model = None

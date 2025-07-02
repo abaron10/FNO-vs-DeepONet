@@ -61,7 +61,7 @@ class BenchmarkRunner:
         results = []
         
         for m in self.models:
-            model_name = f"{m.__class__.__name__}_{m.grid_size}x{m.grid_size}"
+            model_name = f"{m.name}_{m.grid_size}x{m.grid_size}"
             print(f"\n===== {model_name} =====")
             m.setup(self.dm.info)
             
@@ -135,7 +135,7 @@ class BenchmarkRunner:
                 "name": model_name,
                 "model_info": model_info,
                 "metrics": metrics,
-                "plot_path": plot_path
+                "plot_path": f"../{plot_path}"
             })
             
         return results

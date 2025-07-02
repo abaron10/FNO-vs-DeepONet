@@ -1,239 +1,165 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8">  
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neural Operator Benchmark Results</title>
+    <title>Neural Operator Benchmark</title>
+    <!-- Fuentes estilo LaTeX -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Latin+Modern+Roman&family=Latin+Modern+Mono&display=swap"
+    />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        /* Reset */
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        /* Body */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0a;
-            color: #e0e0e0;
-            line-height: 1.6;
-            padding: 20px;
+            font-family:"Latin Modern Roman", serif;
+            background:#f5f7fa;
+            color:#2a2a40;
+            line-height:1.6;
+            padding:20px;
         }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        h1, h2, h3 {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 20px;
-        }
-        
+
+        /* Headings */
         h1 {
-            font-size: 3em;
-            text-align: center;
-            margin-bottom: 10px;
+            font-size:2.8em; text-align:center;
+            background:linear-gradient(90deg,#3f51b5,#5c6bc0);
+            color:#fff; padding:0.5em 0; border-radius:4px;
+            margin-bottom:1em;
         }
-        
+        h2 {
+            font-size:1.8em; color:#3f51b5;
+            margin-top:2em; padding-bottom:0.2em;
+            border-bottom:2px solid #3f51b5;
+        }
+        h3 {
+            font-size:1.3em; color:#3f51b5;
+            margin-bottom:0.5em;
+        }
         .subtitle {
-            text-align: center;
-            color: #888;
-            margin-bottom: 40px;
+            text-align:center; color:#5a5f6d;
+            margin-bottom:2em; font-style:italic;
         }
-        
+
+        /* Sections & Cards */
         .section {
-            background: #1a1a1a;
-            border-radius: 12px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            border: 1px solid #333;
+            background:#fff; border-radius:6px;
+            padding:1.5em; box-shadow:0 4px 8px rgba(0,0,0,0.05);
+            margin-bottom:2em;
         }
-        
         .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            display:flex; flex-wrap:wrap; gap:1.5em;
         }
-        
         .card {
-            background: #252525;
-            border-radius: 8px;
-            padding: 20px;
-            border: 1px solid #404040;
-            transition: transform 0.2s, box-shadow 0.2s;
+            flex:1 1 300px; background:#fff;
+            border-left:4px solid transparent;
+            padding:1.2em; border-radius:4px;
+            position:relative; box-shadow:0 2px 6px rgba(0,0,0,0.04);
+            transition:transform 0.2s,box-shadow 0.2s;
         }
-        
+        .card::before {
+            content:""; position:absolute;
+            top:0; left:0; bottom:0; width:4px;
+            background:linear-gradient(180deg,#3f51b5,#5c6bc0);
+            border-radius:4px 0 0 4px;
+        }
         .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.1);
-            border-color: #667eea;
+            transform:translateY(-4px);
+            box-shadow:0 8px 16px rgba(0,0,0,0.08);
         }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
+
+        /* Alerts */
+        .loading, .error {
+            border-radius:6px; padding:1em 1.2em;
+            margin:1em 0; box-shadow:0 2px 6px rgba(0,0,0,0.1);
+            font-family:"Latin Modern Roman", serif;
         }
-        
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #333;
-        }
-        
-        th {
-            background: #252525;
-            color: #667eea;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.85em;
-            letter-spacing: 0.5px;
-        }
-        
-        tr:hover {
-            background: #2a2a2a;
-        }
-        
-        .metric-value {
-            font-family: 'Courier New', monospace;
-            color: #4ade80;
-        }
-        
-        .model-name {
-            font-weight: bold;
-            color: #667eea;
-        }
-        
-        .info-item {
-            margin-bottom: 10px;
-        }
-        
-        .info-label {
-            color: #888;
-            font-size: 0.9em;
-        }
-        
-        .info-value {
-            color: #e0e0e0;
-            margin-left: 10px;
-        }
-        
-        .chart-container {
-            width: 100%;
-            height: 400px;
-            margin-top: 20px;
-            background: #252525;
-            border-radius: 8px;
-            padding: 20px;
-        }
-        
-        .image-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        
-        .model-image {
-            text-align: center;
-        }
-        
-        .model-image img {
-            width: 100%;
-            max-width: 600px;
-            border-radius: 8px;
-            border: 2px solid #333;
-            margin-top: 10px;
-        }
-        
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            margin-right: 8px;
-            background: #2a2a2a;
-            border: 1px solid #404040;
-        }
-        
-        .badge-gpu {
-            border-color: #4ade80;
-            color: #4ade80;
-        }
-        
-        .badge-cpu {
-            border-color: #fbbf24;
-            color: #fbbf24;
-        }
-        
         .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
+            background:#eef2ff; border-left:4px solid #3f51b5;
+            color:#2a3d66;
         }
-        
         .error {
-            background: #dc2626;
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
+            background:#ffebeb; border-left:4px solid #c0392b;
+            color:#641e16;
         }
-        
-        #chartCanvas, #accuracyChartCanvas {
-            width: 100%;
-            height: 100%;
+
+        /* Accuracy note */
+        .accuracy-note {
+            background:#eef3ff; border-left:4px solid #3f51b5;
+            padding:1em; margin:1.5em 0; font-size:0.9em;
         }
-        
-        .metric-best {
-            color: #4ade80;
-            font-weight: bold;
+        .accuracy-note h4 {
+            margin-bottom:0.5em; color:#3f51b5;
+            font-style:normal;
         }
-        
-        .architecture-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
-            padding: 15px;
-            background: #1a1a1a;
-            border-radius: 6px;
-            font-size: 0.9em;
+
+        /* Tables */
+        table {
+            width:100%; border-collapse:collapse;
+            margin-top:1em; font-size:0.95em; background:#fff;
         }
-        
-        .arch-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px solid #333;
+        thead tr { border-bottom:2px solid #3f51b5; }
+        th, td {
+            padding:0.6em 0.8em; text-align:left;
         }
-        
-        .arch-label {
-            color: #888;
+        tbody tr:nth-child(odd) { background:#f9fbff; }
+        tbody tr:hover { background:#e8f0fb; }
+        tbody tr + tr { border-top:1px solid #dde4f2; }
+        th {
+            font-family:"Latin Modern Roman", serif;
+            font-weight:normal; color:#3f51b5;
         }
-        
-        .arch-value {
-            color: #e0e0e0;
-            font-family: 'Courier New', monospace;
+        td {
+            font-family:"Latin Modern Mono", monospace;
+            color:#2a2a40;
+        }
+
+        /* Charts – espacio extra arriba y a la izquierda */
+        .chart-container {
+            background:#fff; border:1px solid #dde4f2;
+            border-radius:4px; padding:2em 1em 1em 80px;
+            /* padding: top right bottom left */
+            box-shadow:0 2px 6px rgba(0,0,0,0.04);
+        }
+        canvas { width:100%; height:400px; display:block; }
+
+        /* Predictions */
+        .image-grid {
+            display:flex; flex-direction:column; gap:1.5em;
+            margin-top:1em;
+        }
+        .model-image {
+            width:100%; text-align:center;
+        }
+        .model-image img {
+            width:70%; height:auto;
+            border:1px solid #dde4f2; border-radius:4px;
+            box-shadow:0 2px 6px rgba(0,0,0,0.04);
+        }
+
+        /* Info labels */
+        .info-label {
+            font-style:italic; color:#5a5f6d;
+            font-size:0.9em; width:120px; display:inline-block;
+        }
+        .info-value {
+            font-family:"Latin Modern Mono", monospace;
+            color:#2a2a40;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Neural Operator Benchmark</h1>
-        <p class="subtitle" id="timestamp">Loading results...</p>
-        
-        <div id="loading" class="loading">
-            <p>📊 Loading benchmark results...</p>
-        </div>
-        
-        <div id="content" style="display: none;">
-            <!-- Device and Training Info -->
+        <p class="subtitle" id="timestamp">Loading results…</p>
+
+        <div id="loading" class="loading">📊 Loading benchmark results…</div>
+        <div id="error" class="error" style="display:none;"></div>
+
+        <div id="content" style="display:none;">
+            <!-- Benchmark Configuration -->
             <div class="section">
                 <h2>Benchmark Configuration</h2>
                 <div class="grid">
@@ -244,7 +170,7 @@
                             <span class="info-value" id="device"></span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">Training Epochs:</span>
+                            <span class="info-label">Epochs:</span>
                             <span class="info-value" id="epochs"></span>
                         </div>
                         <div class="info-item">
@@ -252,7 +178,6 @@
                             <span class="info-value" id="run-timestamp"></span>
                         </div>
                     </div>
-                    
                     <div class="card">
                         <h3>Dataset: <span id="dataset-name"></span></h3>
                         <div class="info-item">
@@ -264,11 +189,11 @@
                             <span class="info-value" id="dataset-eq"></span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">Grid Resolution:</span>
+                            <span class="info-label">Grid Res.:</span>
                             <span class="info-value" id="grid-res"></span>
                         </div>
                         <div class="info-item">
-                            <span class="info-label">Training Samples:</span>
+                            <span class="info-label">Train Samples:</span>
                             <span class="info-value" id="n-train"></span>
                         </div>
                         <div class="info-item">
@@ -278,14 +203,20 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Model Comparison -->
+
+            <!-- Accuracy Calculation Note -->
+            <div id="accuracy-note" class="accuracy-note" style="display:none;">
+                <h4>⚠️ Accuracy Calculation Method</h4>
+                <p id="accuracy-method"></p>
+            </div>
+
+            <!-- Model Architectures -->
             <div class="section">
                 <h2>Model Architectures</h2>
                 <div id="model-cards" class="grid"></div>
             </div>
-            
-            <!-- Performance Metrics -->
+
+            <!-- Performance Comparison -->
             <div class="section">
                 <h2>Performance Comparison</h2>
                 <table id="metrics-table">
@@ -304,539 +235,259 @@
                     <tbody id="metrics-body"></tbody>
                 </table>
             </div>
-            
-            <!-- Training Curves -->
+
+            <!-- Accuracy Curves -->
+            <div class="section">
+                <h2>Training &amp; Validation Accuracy Curves</h2>
+                <div class="chart-container">
+                    <canvas id="accuracyChartCanvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Loss Curves -->
             <div class="section">
                 <h2>Training Loss Curves</h2>
                 <div class="chart-container">
                     <canvas id="chartCanvas"></canvas>
                 </div>
             </div>
-            
-            <!-- Accuracy Curves -->
-            <div class="section">
-                <h2>Training & Validation Accuracy Curves</h2>
-                <div class="chart-container">
-                    <canvas id="accuracyChartCanvas"></canvas>
-                </div>
-            </div>
-            
+
             <!-- Sample Predictions -->
             <div class="section">
                 <h2>Sample Predictions</h2>
                 <div id="predictions" class="image-grid"></div>
             </div>
         </div>
-        
-        <div id="error" class="error" style="display: none;"></div>
     </div>
-    
+
     <script>
-        // Draw accuracy curves function
-        function drawAccuracyCurves(accuracyHistory, epochs) {
-            const canvas = document.getElementById('accuracyChartCanvas');
-            if (!canvas) return; // Si no existe el canvas, salir
-            
-            const ctx = canvas.getContext('2d');
-            
-            // Set canvas size
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
-            
-            const padding = 40;
-            const width = canvas.width - 2 * padding;
-            const height = canvas.height - 2 * padding;
-            
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Check if we have accuracy data
-            if (!accuracyHistory || Object.keys(accuracyHistory).length === 0) {
-                ctx.fillStyle = '#888';
-                ctx.font = '16px sans-serif';
-                ctx.fillText('No accuracy data available', canvas.width / 2 - 100, canvas.height / 2);
-                return;
-            }
-            
-            // Find min and max accuracy values
-            let minAcc = 0;
-            let maxAcc = 100;
-            
-            // Draw axes
-            ctx.strokeStyle = '#444';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(padding, padding);
-            ctx.lineTo(padding, canvas.height - padding);
-            ctx.lineTo(canvas.width - padding, canvas.height - padding);
-            ctx.stroke();
-            
-            // Draw grid lines
-            ctx.strokeStyle = '#2a2a2a';
-            ctx.setLineDash([5, 5]);
-            for (let i = 0; i <= 10; i++) {
-                const y = padding + (height * i / 10);
-                ctx.beginPath();
-                ctx.moveTo(padding, y);
-                ctx.lineTo(canvas.width - padding, y);
-                ctx.stroke();
-            }
-            ctx.setLineDash([]);
-            
-            // Draw accuracy curves
-            const colors = ['#667eea', '#4ade80', '#f59e0b', '#ef4444'];
-            const dashedColors = ['#9ca3f0', '#7dd3a8', '#f7b94f', '#f38785'];
-            let colorIndex = 0;
-            
-            Object.entries(accuracyHistory).forEach(([model, data]) => {
-                // Draw training accuracy (solid line)
-                if (data.train && data.train.length > 0) {
-                    ctx.strokeStyle = colors[colorIndex % colors.length];
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([]);
-                    ctx.beginPath();
-                    
-                    data.train.forEach((acc, epoch) => {
-                        const x = padding + (epoch / (epochs - 1)) * width;
-                        const y = padding + height - ((acc - minAcc) / (maxAcc - minAcc)) * height;
-                        
-                        if (epoch === 0) {
-                            ctx.moveTo(x, y);
-                        } else {
-                            ctx.lineTo(x, y);
-                        }
-                    });
-                    ctx.stroke();
-                }
-                
-                // Draw validation accuracy (dashed line)
-                if (data.validation && data.validation.length > 0) {
-                    ctx.strokeStyle = dashedColors[colorIndex % dashedColors.length];
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([5, 5]);
-                    ctx.beginPath();
-                    
-                    data.validation.forEach((acc, epoch) => {
-                        const x = padding + (epoch / (epochs - 1)) * width;
-                        const y = padding + height - ((acc - minAcc) / (maxAcc - minAcc)) * height;
-                        
-                        if (epoch === 0) {
-                            ctx.moveTo(x, y);
-                        } else {
-                            ctx.lineTo(x, y);
-                        }
-                    });
-                    ctx.stroke();
-                }
-                
-                // Draw legend
-                const legendY = padding + colorIndex * 35;
-                
-                // Training legend (solid)
-                ctx.setLineDash([]);
-                ctx.strokeStyle = colors[colorIndex % colors.length];
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(canvas.width - 220, legendY + 7);
-                ctx.lineTo(canvas.width - 195, legendY + 7);
-                ctx.stroke();
-                
-                ctx.fillStyle = '#e0e0e0';
-                ctx.font = '12px sans-serif';
-                ctx.fillText(`${model} (train)`, canvas.width - 190, legendY + 12);
-                
-                // Validation legend (dashed)
-                ctx.setLineDash([3, 3]);
-                ctx.strokeStyle = dashedColors[colorIndex % dashedColors.length];
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(canvas.width - 220, legendY + 22);
-                ctx.lineTo(canvas.width - 195, legendY + 22);
-                ctx.stroke();
-                
-                ctx.fillStyle = '#e0e0e0';
-                ctx.font = '12px sans-serif';
-                ctx.fillText(`${model} (val)`, canvas.width - 190, legendY + 27);
-                
-                colorIndex++;
-            });
-            
-            // Reset line dash for labels
-            ctx.setLineDash([]);
-            
-            // Draw labels
-            ctx.fillStyle = '#888';
-            ctx.font = '12px sans-serif';
-            ctx.fillText('0', padding - 20, canvas.height - padding + 5);
-            ctx.fillText(epochs.toString(), canvas.width - padding - 10, canvas.height - padding + 20);
-            ctx.fillText('Epoch', canvas.width / 2 - 20, canvas.height - 10);
-            
-            // Y-axis labels
-            for (let i = 0; i <= 10; i++) {
-                const acc = (i * 10).toString() + '%';
-                const y = canvas.height - padding - (height * i / 10) + 5;
-                ctx.fillText(acc, padding - 35, y);
-            }
-            
-            // Rotate for y-axis label
-            ctx.save();
-            ctx.translate(15, canvas.height / 2);
-            ctx.rotate(-Math.PI / 2);
-            ctx.fillText('Accuracy (%)', -30, 0);
-            ctx.restore();
+        function safeGet(obj, path, def=0) {
+            return path.split('.').reduce((o,k)=>(o&&o[k]!=null)?o[k]:def, obj);
         }
 
-        // Load and display results
         async function loadResults() {
             try {
-                // In production, this would load from your JSON file
-                // For demo, we'll create sample data
-                const response = await fetch('benchmark_results.json').catch(() => {
-                    // If file doesn't exist, use sample data
-                    return {
-                        ok: true,
-                        json: async () => generateSampleData()
-                    };
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to load results');
-                }
-                
-                const data = await response.json();
+                const res = await fetch('./benchmark_results.json');
+                if (!res.ok) throw new Error('Failed to load data');
+                const data = await res.json();
                 displayResults(data);
-                
-            } catch (error) {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').style.display = 'block';
-                document.getElementById('error').innerHTML = `
-                    <h3>Error Loading Results</h3>
-                    <p>${error.message}</p>
-                    <p>Please ensure benchmark_results.json is in the same directory as this HTML file.</p>
+            } catch (e) {
+                document.getElementById('loading').style.display='none';
+                const err = document.getElementById('error');
+                err.style.display='block';
+                err.textContent = `Error Loading Results: ${e.message}`;
+            }
+        }
+
+        function displayResults(d) {
+            document.getElementById('loading').style.display='none';
+            document.getElementById('content').style.display='block';
+
+            const ts = new Date(d.timestamp);
+            document.getElementById('timestamp').textContent = `Results from ${ts.toLocaleString()}`;
+            document.getElementById('device').textContent = d.device||'–';
+            document.getElementById('epochs').textContent = d.epochs||'–';
+            document.getElementById('run-timestamp').textContent = ts.toLocaleString();
+
+            const ds = d.dataset_info||{};
+            document.getElementById('dataset-name').textContent = ds.name||'–';
+            document.getElementById('dataset-desc').textContent = ds.description||'–';
+            document.getElementById('dataset-eq').textContent = ds.equation||'–';
+            document.getElementById('grid-res').textContent = ds.grid_resolution||'–';
+            document.getElementById('n-train').textContent = ds.n_train_samples||'–';
+            document.getElementById('n-test').textContent = ds.n_test_samples||'–';
+
+            if (d.accuracy_calculation_note) {
+                document.getElementById('accuracy-note').style.display='block';
+                document.getElementById('accuracy-method').textContent = d.accuracy_calculation_note;
+            }
+
+            const mc = document.getElementById('model-cards');
+            mc.innerHTML = '';
+            d.models.forEach(m=>{
+                const info = m.model_info||{};
+                const arch = info.architecture||{};
+                let details='';
+                Object.entries(arch).forEach(([k,v])=>{
+                    if(k!=='type' && v!=null) {
+                        details+=`<div class="info-item"><span class="info-label">${k.replace(/_/g,' ')}:</span><span class="info-value">${v}</span></div>`;
+                    }
+                });
+                const card = document.createElement('div');
+                card.className='card';
+                card.innerHTML=`
+                    <h3>${info.name||m.name}</h3>
+                    <p style="color:#888;font-style:italic">${arch.type||''}</p>
+                    <div class="info-item"><span class="info-label">Parameters:</span><span class="info-value">${(info.parameters||0).toLocaleString()}</span></div>
+                    <div class="info-item"><span class="info-label">Optimizer:</span><span class="info-value">${info.optimizer||'–'}</span></div>
+                    ${details}
                 `;
-            }
-        }
-        
-        function displayResults(data) {
-            // Hide loading, show content
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('content').style.display = 'block';
-            
-            // Update timestamp
-            const timestamp = new Date(data.timestamp);
-            document.getElementById('timestamp').textContent = 
-                `Results from ${timestamp.toLocaleString()}`;
-            
-            // Update environment info
-            document.getElementById('device').textContent = data.device;
-            document.getElementById('epochs').textContent = data.epochs;
-            document.getElementById('run-timestamp').textContent = 
-                timestamp.toLocaleString();
-            
-            // Update dataset info
-            const dataset = data.dataset_info;
-            document.getElementById('dataset-name').textContent = dataset.name;
-            document.getElementById('dataset-desc').textContent = dataset.description;
-            document.getElementById('dataset-eq').textContent = dataset.equation;
-            document.getElementById('grid-res').textContent = dataset.grid_resolution;
-            document.getElementById('n-train').textContent = dataset.n_train_samples;
-            document.getElementById('n-test').textContent = dataset.n_test_samples;
-            
-            // Create model cards
-            const modelCards = document.getElementById('model-cards');
-            data.models.forEach(model => {
-                const card = createModelCard(model);
-                modelCards.appendChild(card);
+                mc.appendChild(card);
             });
-            
-            // Fill metrics table
-            fillMetricsTable(data.models);
-            
-            // Draw training curves
-            drawTrainingCurves(data.training_history, data.epochs);
-            
-            // Draw accuracy curves
-            if (data.accuracy_history) {
-                drawAccuracyCurves(data.accuracy_history, data.epochs);
-            }
-            
-            // Display prediction images
-            displayPredictions(data.models);
-        }
-        
-        function createModelCard(model) {
-            const card = document.createElement('div');
-            card.className = 'card';
-            
-            const info = model.model_info;
-            const arch = info.architecture;
-            
-            let archDetails = '';
-            Object.entries(arch).forEach(([key, value]) => {
-                if (key !== 'type') {
-                    archDetails += `
-                        <div class="arch-item">
-                            <span class="arch-label">${key.replace(/_/g, ' ')}:</span>
-                            <span class="arch-value">${value}</span>
-                        </div>
-                    `;
-                }
+
+            fillMetrics(d.models);
+            if (d.accuracy_history) drawAccuracyCurves(d.accuracy_history, d.epochs);
+            if (d.training_history) drawTrainingCurves(d.training_history, d.epochs);
+
+            const pred = document.getElementById('predictions');
+            pred.innerHTML = '';
+            d.models.forEach(m=>{
+                const div = document.createElement('div');
+                div.className='model-image';
+                div.innerHTML=`
+                    <h3>${m.name}</h3>
+                    <img src="${m.plot_path}" alt="${m.name}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22><rect fill=%22%23333%22 width=%22400%22 height=%22300%22/><text x=%2250%%22 y=%2250%%22 fill=%22%23888%22 text-anchor=%22middle%22>Image not found</text></svg>'">
+                `;
+                pred.appendChild(div);
             });
-            
-            card.innerHTML = `
-                <h3>${info.name}</h3>
-                <p style="color: #888; margin-bottom: 15px;">${arch.type}</p>
-                <div class="info-item">
-                    <span class="info-label">Parameters:</span>
-                    <span class="info-value" style="color: #4ade80;">
-                        ${info.parameters.toLocaleString()}
-                    </span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Optimizer:</span>
-                    <span class="info-value">${info.optimizer} (lr=${info.learning_rate})</span>
-                </div>
-                <div class="architecture-details">
-                    ${archDetails}
-                </div>
-            `;
-            
-            return card;
         }
-        
-        function fillMetricsTable(models) {
-            const tbody = document.getElementById('metrics-body');
-            
-            // Find best values for each metric
-            const metrics = ['mse', 'mae', 'rel_l2', 'accuracy'];
-            const bestValues = {};
-            metrics.forEach(metric => {
-                if (metric === 'accuracy') {
-                    // Para accuracy, el mejor es el mayor
-                    bestValues[metric] = Math.max(...models.map(m => m.metrics[metric] || 0));
-                } else {
-                    // Para otros métricas, el mejor es el menor
-                    bestValues[metric] = Math.min(...models.map(m => m.metrics[metric]));
-                }
+
+        function fillMetrics(models) {
+            const tb = document.getElementById('metrics-body');
+            tb.innerHTML = '';
+            const best = {};
+            ['mse','mae','relative_l2','accuracy'].forEach(metric=>{
+                const vals = models.map(m=>{
+                    const mm=m.metrics||{};
+                    if(metric==='relative_l2') return mm.relative_l2!=null?mm.relative_l2:mm.rel_l2||Infinity;
+                    if(metric==='accuracy') return mm.accuracy!=null?mm.accuracy:-Infinity;
+                    return mm[metric]!=null?mm[metric]:Infinity;
+                });
+                best[metric] = metric==='accuracy'?Math.max(...vals):Math.min(...vals);
             });
-            
-            models.forEach(model => {
+            models.forEach(m=>{
+                const mm = m.metrics||{};
                 const row = document.createElement('tr');
-                const m = model.metrics;
-                
-                row.innerHTML = `
-                    <td class="model-name">${model.name}</td>
-                    <td class="metric-value ${m.mse === bestValues.mse ? 'metric-best' : ''}">
-                        ${m.mse.toExponential(3)}
-                    </td>
-                    <td class="metric-value ${m.mae === bestValues.mae ? 'metric-best' : ''}">
-                        ${m.mae.toExponential(3)}
-                    </td>
-                    <td class="metric-value ${m.rel_l2 === bestValues.rel_l2 ? 'metric-best' : ''}">
-                        ${m.rel_l2.toFixed(4)}
-                    </td>
-                    <td class="metric-value ${m.accuracy === bestValues.accuracy ? 'metric-best' : ''}">
-                        ${(m.accuracy || 0).toFixed(1)}%
-                    </td>
-                    <td>${m.wall_sec.toFixed(2)}</td>
-                    <td>${m.avg_time_per_epoch.toFixed(3)}</td>
-                    <td>${model.model_info.parameters.toLocaleString()}</td>
+                const fmt=(v,p)=>(typeof v==='number'?v.toFixed(p):v);
+                row.innerHTML=`
+                    <td>${m.name}</td>
+                    <td style="color:${mm.mse===best.mse?'#3f51b5':'inherit'}">${fmt(mm.mse,3)}</td>
+                    <td style="color:${mm.mae===best.mae?'#3f51b5':'inherit'}">${fmt(mm.mae,3)}</td>
+                    <td style="color:${(mm.relative_l2||mm.rel_l2)===best.relative_l2?'#3f51b5':'inherit'}">${fmt(mm.relative_l2||mm.rel_l2,4)}</td>
+                    <td style="color:${mm.accuracy===best.accuracy?'#3f51b5':'inherit'}">${fmt(mm.accuracy,1)}%</td>
+                    <td>${fmt(mm.wall_sec,2)}</td>
+                    <td>${fmt(mm.avg_time_per_epoch,3)}</td>
+                    <td>${safeGet(m,'model_info.parameters',0).toLocaleString()}</td>
                 `;
-                
-                tbody.appendChild(row);
+                tb.appendChild(row);
             });
         }
-        
-        function drawTrainingCurves(history, epochs) {
-            const canvas = document.getElementById('chartCanvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Set canvas size
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
-            
-            const padding = 40;
-            const width = canvas.width - 2 * padding;
-            const height = canvas.height - 2 * padding;
-            
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Find min and max values
-            let minLoss = Infinity;
-            let maxLoss = -Infinity;
-            Object.values(history).forEach(losses => {
-                minLoss = Math.min(minLoss, ...losses);
-                maxLoss = Math.max(maxLoss, ...losses);
-            });
-            
-            // Draw axes
-            ctx.strokeStyle = '#444';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(padding, padding);
-            ctx.lineTo(padding, canvas.height - padding);
-            ctx.lineTo(canvas.width - padding, canvas.height - padding);
-            ctx.stroke();
-            
-            // Draw grid lines
-            ctx.strokeStyle = '#2a2a2a';
-            ctx.setLineDash([5, 5]);
-            for (let i = 0; i <= 5; i++) {
-                const y = padding + (height * i / 5);
-                ctx.beginPath();
-                ctx.moveTo(padding, y);
-                ctx.lineTo(canvas.width - padding, y);
-                ctx.stroke();
+
+        function drawAccuracyCurves(h, epochs) {
+            const c = document.getElementById('accuracyChartCanvas'), ctx = c.getContext('2d');
+            c.width=c.offsetWidth; c.height=c.offsetHeight;
+            ctx.clearRect(0,0,c.width,c.height);
+            const pad=60, w=c.width-2*pad, H=c.height-2*pad;
+            // axes
+            ctx.strokeStyle='#444'; ctx.lineWidth=1;
+            ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,c.height-pad);
+            ctx.lineTo(c.width-pad,c.height-pad); ctx.stroke();
+            // grid
+            ctx.strokeStyle='#2a2a2a'; ctx.setLineDash([5,5]);
+            for(let i=0;i<=10;i++){
+                const y=pad+i*(H/10);
+                ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(c.width-pad,y); ctx.stroke();
             }
             ctx.setLineDash([]);
-            
-            // Draw curves
-            const colors = ['#667eea', '#4ade80', '#f59e0b', '#ef4444'];
-            let colorIndex = 0;
-            
-            Object.entries(history).forEach(([model, losses]) => {
-                ctx.strokeStyle = colors[colorIndex % colors.length];
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                
-                losses.forEach((loss, epoch) => {
-                    const x = padding + (epoch / (epochs - 1)) * width;
-                    const y = padding + height - ((loss - minLoss) / (maxLoss - minLoss)) * height;
-                    
-                    if (epoch === 0) {
-                        ctx.moveTo(x, y);
-                    } else {
-                        ctx.lineTo(x, y);
-                    }
+            // curves
+            const cols=['#667eea','#4ade80','#f59e0b','#ef4444'], dash=['#9ca3f0','#7dd3a8','#f7b94f','#f38785'];
+            let i=0;
+            for(const [name, data] of Object.entries(h)){
+                ['train','validation'].forEach((k,di)=>{
+                    const arr=data[k]; if(!arr) return;
+                    ctx.strokeStyle=di===0?cols[i]:dash[i];
+                    ctx.lineWidth=2; ctx.setLineDash(di===0?[]:[5,5]);
+                    ctx.beginPath();
+                    arr.forEach((val,ep)=>{
+                        const x=pad+ep/(epochs-1)*w;
+                        const y=pad+H-(val/100)*H;
+                        ep===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+                    });
+                    ctx.stroke();
                 });
-                
-                ctx.stroke();
-                
-                // Draw legend
-                ctx.fillStyle = colors[colorIndex % colors.length];
-                ctx.fillRect(canvas.width - 200, padding + colorIndex * 25, 15, 15);
-                ctx.fillStyle = '#e0e0e0';
-                ctx.font = '14px sans-serif';
-                ctx.fillText(model, canvas.width - 180, padding + colorIndex * 25 + 12);
-                
-                colorIndex++;
-            });
-            
-            // Draw labels
-            ctx.fillStyle = '#888';
-            ctx.font = '12px sans-serif';
-            ctx.fillText('0', padding - 20, canvas.height - padding + 5);
-            ctx.fillText(epochs.toString(), canvas.width - padding - 10, canvas.height - padding + 20);
-            ctx.fillText('Epoch', canvas.width / 2 - 20, canvas.height - 10);
-            
-            // Rotate for y-axis label
-            ctx.save();
-            ctx.translate(15, canvas.height / 2);
-            ctx.rotate(-Math.PI / 2);
-            ctx.fillText('Training Loss', -40, 0);
-            ctx.restore();
+                // legend
+                const ly=pad+i*30;
+                ctx.setLineDash([]); ctx.strokeStyle=cols[i]; ctx.lineWidth=2;
+                ctx.beginPath(); ctx.moveTo(c.width-220,ly+7); ctx.lineTo(c.width-195,ly+7); ctx.stroke();
+                ctx.fillStyle='#2a2a40'; ctx.font='12px sans-serif';
+                ctx.fillText(name+' (train)',c.width-190,ly+12);
+                ctx.setLineDash([3,3]); ctx.strokeStyle=dash[i];
+                ctx.beginPath(); ctx.moveTo(c.width-220,ly+22); ctx.lineTo(c.width-195,ly+22); ctx.stroke();
+                ctx.fillText(name+' (val)',c.width-190,ly+27);
+                i++;
+            }
+            // ticks & labels
+            ctx.setLineDash([]); ctx.fillStyle='#888'; ctx.font='12px sans-serif';
+            ctx.fillText('0',pad,c.height-pad+20);
+            ctx.fillText(epochs.toString(),c.width-pad-20,c.height-pad+20);
+            ctx.fillText('Epoch',c.width/2-20,c.height-10);
+            for(let j=0;j<=10;j++){
+                const perc=100 - j*10;
+                const y=pad+j*(H/10)+4;
+                ctx.fillText(perc+'%',pad-40,y);
+            }
+            ctx.save(); ctx.translate(pad-30,c.height/2); ctx.rotate(-Math.PI/2);
+            ctx.fillText('Accuracy (%)', -20,0); ctx.restore();
         }
-        
-        function displayPredictions(models) {
-            const container = document.getElementById('predictions');
-            
-            models.forEach(model => {
-                const div = document.createElement('div');
-                div.className = 'model-image';
-                div.innerHTML = `
-                    <h3>${model.name}</h3>
-                    <img src="${model.plot_path}" alt="${model.name} predictions" 
-                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22><rect fill=%22%23333%22 width=%22400%22 height=%22300%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 fill=%22%23888%22>Image not found: ${model.plot_path}</text></svg>'">
-                `;
-                container.appendChild(div);
-            });
-        }
-        
-        // Generate sample data for demo
-        function generateSampleData() {
-            return {
-                timestamp: new Date().toISOString(),
-                device: "cuda",
-                epochs: 100,
-                dataset_info: {
-                    name: "Darcy Flow",
-                    description: "2D steady-state Darcy flow equation with variable permeability",
-                    equation: "∇ · (κ(x)∇p(x)) = f(x)",
-                    grid_resolution: "16×16",
-                    n_train_samples: 100,
-                    n_test_samples: 50
-                },
-                models: [
-                    {
-                        name: "FNOOperator",
-                        model_info: {
-                            name: "Fourier Neural Operator (FNO)",
-                            architecture: {
-                                type: "Spectral convolution in Fourier space",
-                                n_modes: [16, 16],
-                                hidden_channels: 32,
-                                n_layers: 3
-                            },
-                            parameters: 127041,
-                            optimizer: "Adam",
-                            learning_rate: 0.001
-                        },
-                        metrics: {
-                            mse: 0.00234,
-                            mae: 0.0412,
-                            rel_l2: 0.0823,
-                            accuracy: 78.5,
-                            wall_sec: 45.2,
-                            avg_time_per_epoch: 0.452
-                        },
-                        plot_path: "figs/FNOOperator.png"
-                    },
-                    {
-                        name: "DeepONetOperator",
-                        model_info: {
-                            name: "Deep Operator Network (DeepONet)",
-                            architecture: {
-                                type: "Branch-Trunk neural network",
-                                branch_input_size: 100,
-                                trunk_input_size: 2,
-                                hidden_size: 128,
-                                num_layers: 4,
-                                n_sensors: 100
-                            },
-                            parameters: 83585,
-                            optimizer: "Adam",
-                            learning_rate: 0.001
-                        },
-                        metrics: {
-                            mse: 0.00312,
-                            mae: 0.0486,
-                            rel_l2: 0.0967,
-                            accuracy: 72.3,
-                            wall_sec: 38.7,
-                            avg_time_per_epoch: 0.387
-                        },
-                        plot_path: "figs/DeepONetOperator_64x64.png"
-                    }
-                ],
-                training_history: {
-                    "FNOOperator": Array(100).fill(0).map((_, i) => 0.1 * Math.exp(-i/20) + 0.002 + Math.random() * 0.001),
-                    "DeepONetOperator": Array(100).fill(0).map((_, i) => 0.15 * Math.exp(-i/25) + 0.003 + Math.random() * 0.001)
-                },
-                accuracy_history: {
-                    "FNOOperator": {
-                        "train": Array(100).fill(0).map((_, i) => Math.min(95, 20 + 60 * (1 - Math.exp(-i/15)) + Math.random() * 5)),
-                        "validation": Array(100).fill(0).map((_, i) => Math.min(90, 15 + 55 * (1 - Math.exp(-i/18)) + Math.random() * 5))
-                    },
-                    "DeepONetOperator": {
-                        "train": Array(100).fill(0).map((_, i) => Math.min(92, 18 + 55 * (1 - Math.exp(-i/20)) + Math.random() * 5)),
-                        "validation": Array(100).fill(0).map((_, i) => Math.min(88, 12 + 50 * (1 - Math.exp(-i/22)) + Math.random() * 5))
-                    }
+
+        function drawTrainingCurves(h, epochs) {
+            const c = document.getElementById('chartCanvas'), ctx = c.getContext('2d');
+            c.width=c.offsetWidth; c.height=c.offsetHeight;
+            ctx.clearRect(0,0,c.width,c.height);
+            const pad=40, w=c.width-2*pad, H=c.height-2*pad;
+            // axes
+            ctx.strokeStyle='#444'; ctx.lineWidth=1;
+            ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,c.height-pad);
+            ctx.lineTo(c.width-pad,c.height-pad); ctx.stroke();
+            // grid
+            ctx.strokeStyle='#2a2a2a'; ctx.setLineDash([5,5]);
+            for(let i=0;i<=5;i++){
+                const y=pad + i*(H/5);
+                ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(c.width-pad,y); ctx.stroke();
+            }
+            ctx.setLineDash([]);
+            // find mn/mx
+            let mn=Infinity, mx=-Infinity;
+            Object.values(h).forEach(arr=>{
+                if(Array.isArray(arr)){
+                    mn=Math.min(mn,...arr);
+                    mx=Math.max(mx,...arr);
                 }
-            };
+            });
+            // curves
+            const cols=['#667eea','#4ade80','#f59e0b','#ef4444'];
+            let i=0;
+            for(const [name, arr] of Object.entries(h)){
+                if(!Array.isArray(arr)) continue;
+                ctx.strokeStyle=cols[i]; ctx.lineWidth=2; ctx.beginPath();
+                arr.forEach((val,ep)=>{
+                    const x=pad+ep/(epochs-1)*w;
+                    const y=pad+H-((val-mn)/(mx-mn))*H;
+                    ep===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+                });
+                ctx.stroke();
+                // legend
+                ctx.fillStyle=cols[i]; ctx.fillRect(c.width-200,pad+i*25,15,15);
+                ctx.fillStyle='#2a2a40'; ctx.font='14px sans-serif';
+                ctx.fillText(name,c.width-180,pad+i*25+12);
+                i++;
+            }
+            // y-axis ticks
+            ctx.fillStyle='#888'; ctx.font='12px sans-serif';
+            for(let j=0;j<=5;j++){
+                const val = mn + (mx-mn)*(5-j)/5;
+                const y=pad+j*(H/5)+4;
+                ctx.fillText(val.toFixed(1),pad-35,y);
+            }
+            // x-axis labels
+            ctx.fillText('0',pad,c.height-pad+20);
+            ctx.fillText(epochs.toString(),c.width-pad-20,c.height-pad+20);
+            ctx.fillText('Epoch',c.width/2-20,c.height-10);
+            // y-axis title
+            ctx.save(); ctx.translate(15,c.height/2); ctx.rotate(-Math.PI/2);
+            ctx.fillText('Training Loss',-40,0); ctx.restore();
         }
-        
-        // Load results when page loads
+
         window.addEventListener('load', loadResults);
     </script>
 </body>

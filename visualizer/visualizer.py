@@ -46,7 +46,7 @@ class Visualizer:
             
         fig.tight_layout()
         grid_info = f"_{operator.grid_size}x{operator.grid_size}"
-        fpath = self.out / (fname or f"{operator.__class__.__name__}{grid_info}.png")
+        fpath = self.out / (fname or f"{operator.name}{grid_info}.png")
         fig.savefig(fpath, dpi=150, bbox_inches='tight')
         plt.close(fig)
         print(f"[Visualizer] saved {fpath}")
