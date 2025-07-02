@@ -9,6 +9,10 @@ Key adaptations for small datasets (500 samples):
 - Proper positional encoding with grid
 - Step learning rate decay
 
+Accuracy calculation follows Li et al.:
+- Accuracy = 100 * (1 - relative_L2_error)
+- Where relative_L2_error = ||u_pred - u_true||_2 / ||u_true||_2
+
 Note: FFT operations create complex gradients that require special handling
 """
 
@@ -21,7 +25,6 @@ from .base_operator import BaseOperator
 
 
 class SpectralConv2d(nn.Module):
-    """2D Fourier layer optimized for small datasets based on Li et al."""
     def __init__(self, in_channels, out_channels, modes1, modes2):
         super().__init__()
         self.in_channels = in_channels
@@ -36,15 +39,12 @@ class SpectralConv2d(nn.Module):
 
     def forward(self, x):
         batchsize = x.shape[0]
-        # Compute Fourier coefficients
         x_ft = torch.fft.rfft2(x)
         
-        # Multiply relevant Fourier modes
         out_ft = torch.zeros(batchsize, self.out_channels, x.size(-2), x.size(-1)//2 + 1, dtype=torch.cfloat, device=x.device)
         out_ft[:, :, :self.modes1, :self.modes2] = torch.einsum("bixy,ioxy->boxy", x_ft[:, :, :self.modes1, :self.modes2], self.weights1)
         out_ft[:, :, -self.modes1:, :self.modes2] = torch.einsum("bixy,ioxy->boxy", x_ft[:, :, -self.modes1:, :self.modes2], self.weights2)
         
-        # Return to physical space
         x = torch.fft.irfft2(out_ft, s=(x.size(-2), x.size(-1)))
         return x
 
@@ -56,7 +56,6 @@ class FNOBlock(nn.Module):
         self.conv = SpectralConv2d(in_channels, out_channels, modes1, modes2)
         self.w = nn.Conv2d(in_channels, out_channels, 1)
         
-        # Activation function
         if activation == 'gelu':
             self.activation = F.gelu
         elif activation == 'relu':
@@ -72,24 +71,23 @@ class FNOOperator(BaseOperator):
     """FNO optimized for very small datasets following Li et al. recommendations"""
 
     def __init__(self, device, grid_size=32,
-                 # Architecture based on Li's recommendations for small data
-                 modes=6,               # Very few modes for 500 samples
-                 width=20,              # Narrow width for small datasets
-                 n_layers=4,            # 4 layers as in Li's paper
-                 in_channels=1,         # Number of input channels
+                 modes=6,               
+                 width=20,              
+                 n_layers=4,            
+                 in_channels=1,         
                  
                  # Training settings
-                 lr=1e-3,               # Standard learning rate
-                 step_size=100,         # Step decay every 100 epochs
-                 gamma=0.5,             # Decay factor
-                 weight_decay=1e-4,     # Light regularization
+                 lr=1e-3,              
+                 step_size=100,         
+                 gamma=0.5,            
+                 weight_decay=1e-4,    
                  epochs=500,
                  
                  # Data augmentation
                  use_augmentation=True,
                  
                  # Architecture choices
-                 share_weights=False,    # Don't share weights across layers
+                 share_weights=False,    
                  activation='gelu'):     # GELU as in paper
 
         super().__init__(device, grid_size)
@@ -97,7 +95,7 @@ class FNOOperator(BaseOperator):
         self.modes = modes
         self.width = width
         self.n_layers = n_layers
-        self.in_channels = in_channels  # Store input channels
+        self.in_channels = in_channels  
         self.lr = lr
         self.step_size = step_size
         self.gamma = gamma
@@ -113,7 +111,6 @@ class FNOOperator(BaseOperator):
         self.patience_counter = 0
 
     def setup(self, data_info):
-        # Data normalization - critical for FNO
         self.input_mean = torch.tensor(data_info["k_mean"], device=self.device)
         self.input_std = torch.tensor(data_info["k_std"], device=self.device)
         
@@ -223,6 +220,12 @@ class FNOOperator(BaseOperator):
         total_samples = 0
         total_accuracy = 0
         
+        # Track epoch number for debug output
+        if not hasattr(self, 'epoch_num'):
+            self.epoch_num = 0
+        epoch_num = self.epoch_num
+        self.epoch_num += 1
+        
         for batch_idx, batch in enumerate(train_loader):
             x = batch["x"].to(self.device)
             y = batch["y"].to(self.device)
@@ -255,11 +258,27 @@ class FNOOperator(BaseOperator):
             out = self.model(x)
             loss = F.mse_loss(out, y)
             
-            # Calculate accuracy for training
+            # Calculate accuracy for training (Li et al. style)
             with torch.no_grad():
-                rel_error = torch.abs(out - y) / (torch.abs(y) + 1e-8)
-                accuracy = (rel_error < 0.15).float().mean() * 100
-                total_accuracy += accuracy.item() * x.size(0)
+                # Compute per-sample relative L2 error
+                diff = (out - y).view(out.size(0), -1)
+                true = y.view(y.size(0), -1)
+                rel_l2 = (diff.norm(dim=1) / (true.norm(dim=1) + 1e-8))  # shape (batch,)
+                
+                # Convert to accuracy = 100 * (1 - error)
+                sample_accuracy = (1 - rel_l2) * 100  # shape (batch,)
+                
+                # Average over batch
+                batch_accuracy = sample_accuracy.mean().item()
+                total_accuracy += batch_accuracy * x.size(0)
+                
+                # Debug: print first batch stats
+                if batch_idx == 0 and epoch_num == 0:
+                    avg_rel_l2 = rel_l2.mean().item()
+                    print(f"\n📊 Accuracy calculation (Li et al. method):")
+                    print(f"   Relative L2 error: {avg_rel_l2:.4f}")
+                    print(f"   Accuracy = 100*(1-L2_err) = {batch_accuracy:.1f}%")
+                    print(f"   Note: Negative accuracy means L2 error > 1.0")
             
             # Backward pass
             loss.backward()
@@ -286,8 +305,11 @@ class FNOOperator(BaseOperator):
         # Validation
         val_loss = float('inf')
         val_accuracy = 0
+        val_rel_l2 = 1.0  # Default relative L2 error
         if val_loader is not None:
             val_loss, val_accuracy = self.evaluate(val_loader)
+            # Calculate relative L2 from accuracy: acc = 100*(1-L2) => L2 = 1-acc/100
+            val_rel_l2 = 1 - val_accuracy/100
             
             # Early stopping
             if val_loss < self.best_val_loss:
@@ -305,9 +327,23 @@ class FNOOperator(BaseOperator):
             'train_accuracy': avg_train_accuracy,
             'val_loss': val_loss,
             'val_accuracy': val_accuracy,
+            'val_rel_l2': val_rel_l2,
             'lr': self.optimizer.param_groups[0]['lr'],
-            'should_stop': self.patience_counter >= self.patience
+            'should_stop': self.patience_counter >= self.patience,
+            'info': 'Accuracy computed as 100*(1-relative_L2_error) following Li et al.'
         }
+
+    def _calculate_relative_l2_error(self, pred, target):
+        """Calculate relative L2 error as in Li et al."""
+        with torch.no_grad():
+            # Flatten to compute norms
+            diff = (pred - target).view(pred.size(0), -1)
+            true = target.view(target.size(0), -1)
+            
+            # Compute per-sample relative L2 error
+            rel_l2 = diff.norm(dim=1) / (true.norm(dim=1) + 1e-8)
+            
+            return rel_l2.mean().item()
 
     @torch.no_grad()
     def evaluate(self, data_loader):
@@ -332,15 +368,24 @@ class FNOOperator(BaseOperator):
             out = self.model(x)
             loss = F.mse_loss(out, y)
             
-            # Calculate accuracy (within 15% relative error)
-            rel_error = torch.abs(out - y) / (torch.abs(y) + 1e-8)
-            accuracy = (rel_error < 0.15).float().mean()
+            # Calculate accuracy using Li et al. method (same as training)
+            # Compute per-sample relative L2 error
+            diff = (out - y).view(out.size(0), -1)
+            true = y.view(y.size(0), -1)
+            rel_l2 = (diff.norm(dim=1) / (true.norm(dim=1) + 1e-8))  # shape (batch,)
             
-            total_loss += loss.item() * x.size(0)
-            total_accuracy += accuracy.item() * x.size(0)
-            total_samples += x.size(0)
+            # Convert to accuracy = 100 * (1 - error)
+            sample_accuracy = (1 - rel_l2) * 100  # shape (batch,)
+            
+            # Sum for averaging later
+            total_loss += loss.item() * out.size(0)
+            total_accuracy += sample_accuracy.sum().item()
+            total_samples += out.size(0)
         
-        return total_loss / total_samples, (total_accuracy / total_samples) * 100
+        avg_loss = total_loss / total_samples
+        avg_accuracy = total_accuracy / total_samples
+        
+        return avg_loss, avg_accuracy
 
     @torch.no_grad()
     def predict(self, batch):
@@ -362,7 +407,7 @@ class FNOOperator(BaseOperator):
         trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         
         return {
-            "name": "FNO_LiEtAl_SmallData",
+            "name": "FNO_LiEtAl_AccuracyMethod",
             "architecture": {
                 "grid": f"{self.grid_size}×{self.grid_size}",
                 "modes": self.modes,
@@ -373,7 +418,8 @@ class FNOOperator(BaseOperator):
             },
             "parameters": trainable_params,
             "total_parameters": total_params,
-            "optimizer": f"Adam(lr={self.lr})"
+            "optimizer": f"Adam(lr={self.lr})",
+            "accuracy_method": "Li et al. (100*(1-relative_L2_error))"
         }
     
     def count_parameters(self):
@@ -434,11 +480,12 @@ class FNOEnsembleOperator(FNOOperator):
         # Average results
         avg_result = {
             'train_loss': sum(r['train_loss'] for r in results) / len(results),
-            'train_accuracy': sum(r['train_accuracy'] for r in results) / len(results),  # Added this line
+            'train_accuracy': sum(r['train_accuracy'] for r in results) / len(results),
             'val_loss': sum(r['val_loss'] for r in results) / len(results),
             'val_accuracy': sum(r['val_accuracy'] for r in results) / len(results),
             'lr': results[0]['lr'],
-            'should_stop': any(r['should_stop'] for r in results)
+            'should_stop': any(r['should_stop'] for r in results),
+            'info': results[0].get('info', '')
         }
         
         return avg_result
@@ -478,7 +525,7 @@ class FNOEnsembleOperator(FNOOperator):
         trainable_params = sum(p.numel() for p in self.models[0].parameters() if p.requires_grad)
         
         return {
-            "name": f"FNO_Ensemble_{self.n_models}models",
+            "name": f"FNO_Ensemble_{self.n_models}models_LiAccuracy",
             "architecture": {
                 "grid": f"{self.grid_size}×{self.grid_size}",
                 "modes": self.modes,
@@ -490,7 +537,8 @@ class FNOEnsembleOperator(FNOOperator):
             },
             "parameters": trainable_params * self.n_models,  # Total params across all models
             "parameters_per_model": trainable_params,
-            "optimizer": f"Adam(lr={self.lr})"
+            "optimizer": f"Adam(lr={self.lr})",
+            "accuracy_method": "Li et al. (100*(1-relative_L2_error))"
         }
     
     def count_parameters(self):

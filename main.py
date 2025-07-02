@@ -110,6 +110,13 @@ if __name__ == "__main__":
     print("   - Proper grid encoding (adds 2 channels for x,y coordinates)")
     print("   - Step learning rate decay")
     print(f"\n   Note: Model will use {detected_channels} input channel(s) + 2 grid channels = {detected_channels + 2} total")
+    print("\n   📊 Accuracy calculation follows Li et al.:")
+    print("      Accuracy = 100 × (1 - relative_L2_error)")
+    print("      where relative_L2_error = ||pred - true||₂ / ||true||₂")
+    print("\n   ⚠️  IMPORTANT:")
+    print("      - This is NOT percentage of correct predictions!")
+    print("      - Accuracy CAN be negative (if L2 error > 100%)")
+    print("      - Accuracy should NOT exceed 100% (if it does, there's a bug)")
     
     scores = runner.run()
     
@@ -118,7 +125,7 @@ if __name__ == "__main__":
     print("📊 BENCHMARK RESULTS")
     print("="*60)
     
-    best_accuracy = 0
+    best_accuracy = -float('inf')  # Can be negative!
     best_model = None
     
     for s in scores:
@@ -144,11 +151,22 @@ if __name__ == "__main__":
         if 'mse' in metrics:
             print(f"   ├─ MSE: {metrics['mse']:.4e}")
         if 'relative_l2' in metrics:
-            print(f"   ├─ Relative L2: {metrics['relative_l2']:.4f} ({metrics['relative_l2']*100:.1f}%)")
+            rel_l2_error = metrics['relative_l2']
+            print(f"   ├─ Relative L2: {rel_l2_error:.4f} ({rel_l2_error*100:.1f}%)")
+            # Verify accuracy calculation
+            expected_acc = 100 * (1 - rel_l2_error)
+            if abs(expected_acc - metrics.get('accuracy', 0)) > 0.1:
+                print(f"   ├─ Note: Accuracy should be {expected_acc:.1f}% based on L2 error")
         if 'accuracy' in metrics:
-            print(f"   ├─ Accuracy: {metrics['accuracy']:.1f}%")
-            if metrics['accuracy'] > best_accuracy:
-                best_accuracy = metrics['accuracy']
+            acc = metrics['accuracy']
+            print(f"   ├─ Accuracy: {acc:.1f}%")
+            # Sanity check for Li et al. accuracy
+            if acc > 100:
+                print(f"   ├─ ⚠️  WARNING: Accuracy > 100% indicates calculation error!")
+            elif acc < -100:
+                print(f"   ├─ ⚠️  WARNING: Very negative accuracy, check data normalization")
+            if acc > best_accuracy:
+                best_accuracy = acc
                 best_model = s['name']
         if 'training_time' in metrics:
             print(f"   └─ Training time: {metrics['training_time']:.1f}s")
@@ -159,62 +177,7 @@ if __name__ == "__main__":
     runner.save_results(scores)
     print(f"\n💾 Results saved to: {filename}")
     
-    # Performance analysis
-    print("\n" + "="*60)
-    print("📈 PERFORMANCE ANALYSIS")
-    print("="*60)
+  
     
-    print(f"\n🏆 Best model: {best_model} with {best_accuracy:.1f}% accuracy")
+
     
-    print("\n📊 Comparison with previous results:")
-    print("  Initial model: 21.2% accuracy (overly regularized)")
-    print("  Second attempt: 30.7% accuracy (133k params)")
-    print(f"  Current best: {best_accuracy:.1f}% accuracy")
-    
-    # Detailed analysis
-    print("\n🔍 Detailed Analysis:")
-    if best_accuracy < 40:
-        print("  ❌ Accuracy is still below 40%")
-        print("  Possible issues:")
-        print("  - Dataset might be too small for FNO")
-        print("  - Problem might require higher frequency modes")
-        print("  - Consider trying DeepONet or other architectures")
-    elif best_accuracy < 60:
-        print("  ⚠️ Moderate accuracy (40-60%)")
-        print("  Suggestions:")
-        print("  - Try ensemble methods")
-        print("  - Experiment with more data augmentation")
-        print("  - Consider transfer learning")
-    else:
-        print("  ✅ Good accuracy for 500 samples!")
-        print("  - Model successfully learned the operator")
-        print("  - Consider ensemble for further improvement")
-    
-    # Final recommendations
-    print("\n" + "="*60)
-    print("💡 NEXT STEPS")
-    print("="*60)
-    print("1. If accuracy < 40%:")
-    print("   - Try DeepONet (more flexible for small data)")
-    print("   - Reduce modes further (2-3)")
-    print("   - Check if data normalization is correct")
-    print("")
-    print("2. To push accuracy higher:")
-    print("   - Enable ensemble model (uncomment in code)")
-    print("   - Generate synthetic data")
-    print("   - Try transfer learning from similar PDEs")
-    print("")
-    print("3. Alternative architectures:")
-    print("   - U-FNO: Combines CNN with FNO")
-    print("   - TFNO: Tucker factorization for efficiency")
-    print("   - DeepONet: More suitable for small datasets")
-    
-    # Data quality check
-    print("\n" + "="*60)
-    print("🔍 DATA QUALITY CHECK")
-    print("="*60)
-    print("Run these checks if accuracy is low:")
-    print("1. Verify data normalization is correct")
-    print("2. Check if PDE has symmetries for augmentation")
-    print("3. Ensure train/test split is representative")
-    print("4. Look for outliers in the data")

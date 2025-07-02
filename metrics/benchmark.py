@@ -17,11 +17,36 @@ def rel_l2(p, y):
     return (torch.linalg.vector_norm(p - y) / torch.linalg.vector_norm(y)).item()
 
 def accuracy(p, y, threshold=0.1):
-    """Compute accuracy as percentage of predictions within threshold of true values"""
+    """
+    Compute accuracy using Li et al. method:
+    Accuracy = 100 * (1 - relative_L2_error)
+    
+    Note: This is NOT percentage of correct predictions!
+    It represents how close the prediction is to the true solution globally.
+    """
+    # Use the relative L2 error calculation
+    relative_l2_error = rel_l2(p, y)
+    
+    # Li et al. accuracy formula
+    accuracy_value = 100 * (1 - relative_l2_error)
+    
+    return accuracy_value
+
+def accuracy_pointwise(p, y, threshold=0.15):
+    """
+    Legacy pointwise accuracy (for comparison only)
+    Compute accuracy as percentage of predictions within threshold of true values
+    """
     rel_error = torch.abs(p - y) / (torch.abs(y) + 1e-8)
     return (rel_error < threshold).float().mean().item() * 100
 
-METRICS = dict(mse=mse, mae=mae, rel_l2=rel_l2, accuracy=accuracy)
+METRICS = dict(
+    mse=mse, 
+    mae=mae, 
+    relative_l2=rel_l2,  # Explicitly use relative_l2 as the key
+    accuracy=accuracy,
+    accuracy_pointwise=accuracy_pointwise  # Keep legacy method for comparison
+)
 
 class BenchmarkRunner:
     def __init__(self, models: Sequence[BaseOperator], dm: DataModule, epochs: int = 25):
@@ -37,7 +62,7 @@ class BenchmarkRunner:
         
         for m in self.models:
             model_name = f"{m.__class__.__name__}_{m.grid_size}x{m.grid_size}"
-            #print(f"\n===== {model_name} =====")
+            print(f"\n===== {model_name} =====")
             m.setup(self.dm.info)
             
             train_losses = []
@@ -79,9 +104,28 @@ class BenchmarkRunner:
                 'validation': val_accuracies
             }
             
+            # Evaluate metrics on test set
             metrics = m.eval(self.dm.test, METRICS)
             metrics["wall_sec"] = wall
             metrics["avg_time_per_epoch"] = wall / self.epochs
+            
+            # Verify accuracy calculation is consistent
+            if 'relative_l2' in metrics and 'accuracy' in metrics:
+                expected_accuracy = 100 * (1 - metrics['relative_l2'])
+                if abs(expected_accuracy - metrics['accuracy']) > 0.1:
+                    print(f"\n⚠️  WARNING: Inconsistent accuracy calculation!")
+                    print(f"   Relative L2: {metrics['relative_l2']:.4f}")
+                    print(f"   Expected accuracy: {expected_accuracy:.1f}%")
+                    print(f"   Reported accuracy: {metrics['accuracy']:.1f}%")
+                    # Fix it
+                    metrics['accuracy'] = expected_accuracy
+            
+            # Print final metrics summary
+            print(f"\n  Final metrics (Li et al. method):")
+            print(f"  Relative L2 error: {metrics.get('relative_l2', 'N/A'):.4f}")
+            print(f"  Accuracy (100*(1-L2)): {metrics.get('accuracy', 'N/A'):.1f}%")
+            if 'accuracy_pointwise' in metrics:
+                print(f"  Pointwise accuracy (legacy): {metrics['accuracy_pointwise']:.1f}%")
             
             model_info = m.get_model_info()
             
@@ -110,10 +154,15 @@ class BenchmarkRunner:
                     elif isinstance(v, (list, tuple)) and len(v) > 0 and hasattr(v[0], 'item'):
                         arch[k] = [x.item() if hasattr(x, 'item') else x for x in v]
             
+            # Add note about accuracy calculation method
+            metrics_with_note = r["metrics"].copy()
+            metrics_with_note["accuracy_method"] = "Li et al. (100*(1-relative_L2_error))"
+            
             clean_results.append({
                 "name": r["name"],
                 "model_info": clean_model_info,
-                "metrics": {k: float(v) for k, v in r["metrics"].items()},
+                "metrics": {k: float(v) if isinstance(v, (int, float)) else v 
+                          for k, v in metrics_with_note.items()},
                 "plot_path": str(r["plot_path"])
             })
         
@@ -134,7 +183,8 @@ class BenchmarkRunner:
                     for split, accs in history.items()
                 }
                 for model, history in self.accuracy_history.items()
-            }
+            },
+            "accuracy_calculation_note": "Accuracy computed using Li et al. method: 100*(1-relative_L2_error)"
         }
         
         with open(output_path, 'w') as f:
