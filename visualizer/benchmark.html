@@ -236,19 +236,76 @@
                 </table>
             </div>
 
-            <!-- Accuracy Curves -->
+            <!-- Training & Validation Accuracy Curves -->
             <div class="section">
                 <h2>Training &amp; Validation Accuracy Curves</h2>
                 <div class="chart-container">
-                    <canvas id="accuracyChartCanvas"></canvas>
+                    <img id="trainingCurvesChart" src="./fno_charts/training_curves.png" 
+                         alt="Training and Validation Accuracy Curves" 
+                         style="width: 100%; height: auto; max-height: 500px; object-fit: contain;"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div style="display: none; text-align: center; padding: 2em; color: #888; background: #f9f9f9; border-radius: 4px;">
+                        📊 Training curves chart not available<br>
+                        <small>Run the matplotlib visualizer to generate charts</small>
+                    </div>
                 </div>
             </div>
 
-            <!-- Loss Curves -->
+            <!-- Performance Analysis Charts -->
             <div class="section">
-                <h2>Training Loss Curves</h2>
+                <h2>Performance Analysis</h2>
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 2em;">
+                    <!-- Training Time vs Accuracy -->
+                    <div class="card">
+                        <h3>Training Time vs Accuracy</h3>
+                        <div class="chart-container" style="padding: 1em;">
+                            <img src="./fno_charts/training_time_vs_accuracy.png" 
+                                 alt="Training Time vs Accuracy" 
+                                 style="width: 100%; height: auto; max-height: 350px; object-fit: contain;"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div style="display: none; text-align: center; padding: 1.5em; color: #888; background: #f9f9f9; border-radius: 4px;">
+                                📊 Chart not available
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Relative L2 Error -->
+                    <div class="card">
+                        <h3>Relative L2 Error Comparison</h3>
+                        <div class="chart-container" style="padding: 1em;">
+                            <img src="./fno_charts/relative_l2_error.png" 
+                                 alt="Relative L2 Error Comparison" 
+                                 style="width: 100%; height: auto; max-height: 350px; object-fit: contain;"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div style="display: none; text-align: center; padding: 1.5em; color: #888; background: #f9f9f9; border-radius: 4px;">
+                                📊 Chart not available
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Model Efficiency Analysis -->
+            <div class="section">
+                <h2>Model Efficiency Analysis</h2>
                 <div class="chart-container">
-                    <canvas id="chartCanvas"></canvas>
+                    <img src="./fno_charts/model_efficiency.png" 
+                         alt="Model Efficiency - Accuracy per 1000 Parameters" 
+                         style="width: 100%; height: auto; max-height: 500px; object-fit: contain;"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div style="display: none; text-align: center; padding: 2em; color: #888; background: #f9f9f9; border-radius: 4px;">
+                        📊 Model efficiency chart not available<br>
+                        <small>This chart shows accuracy per 1000 parameters - higher values indicate more efficient models</small>
+                    </div>
+                </div>
+                <div style="margin-top: 1em; padding: 1em; background: #f0f4ff; border-left: 4px solid #3f51b5; border-radius: 4px;">
+                    <h4 style="margin-bottom: 0.5em; color: #3f51b5;">💡 Understanding Model Efficiency</h4>
+                    <p style="margin: 0; color: #2a3d66; font-size: 0.95em;">
+                        This metric shows how much accuracy each model achieves per 1000 parameters. 
+                        Higher values indicate more parameter-efficient models that achieve better performance 
+                        with fewer parameters. This is especially important for deployment scenarios with 
+                        memory or computational constraints.
+                    </p>
                 </div>
             </div>
 
@@ -326,8 +383,8 @@
             });
 
             fillMetrics(d.models);
-            if (d.accuracy_history) drawAccuracyCurves(d.accuracy_history, d.epochs);
-            if (d.training_history) drawTrainingCurves(d.training_history, d.epochs);
+
+            // Charts are now handled by matplotlib images, no need for canvas drawing
 
             const pred = document.getElementById('predictions');
             pred.innerHTML = '';
@@ -371,121 +428,6 @@
                 `;
                 tb.appendChild(row);
             });
-        }
-
-        function drawAccuracyCurves(h, epochs) {
-            const c = document.getElementById('accuracyChartCanvas'), ctx = c.getContext('2d');
-            c.width=c.offsetWidth; c.height=c.offsetHeight;
-            ctx.clearRect(0,0,c.width,c.height);
-            const pad=60, w=c.width-2*pad, H=c.height-2*pad;
-            // axes
-            ctx.strokeStyle='#444'; ctx.lineWidth=1;
-            ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,c.height-pad);
-            ctx.lineTo(c.width-pad,c.height-pad); ctx.stroke();
-            // grid
-            ctx.strokeStyle='#2a2a2a'; ctx.setLineDash([5,5]);
-            for(let i=0;i<=10;i++){
-                const y=pad+i*(H/10);
-                ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(c.width-pad,y); ctx.stroke();
-            }
-            ctx.setLineDash([]);
-            // curves
-            const cols=['#667eea','#4ade80','#f59e0b','#ef4444'], dash=['#9ca3f0','#7dd3a8','#f7b94f','#f38785'];
-            let i=0;
-            for(const [name, data] of Object.entries(h)){
-                ['train','validation'].forEach((k,di)=>{
-                    const arr=data[k]; if(!arr) return;
-                    ctx.strokeStyle=di===0?cols[i]:dash[i];
-                    ctx.lineWidth=2; ctx.setLineDash(di===0?[]:[5,5]);
-                    ctx.beginPath();
-                    arr.forEach((val,ep)=>{
-                        const x=pad+ep/(epochs-1)*w;
-                        const y=pad+H-(val/100)*H;
-                        ep===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-                    });
-                    ctx.stroke();
-                });
-                // legend
-                const ly=pad+i*30;
-                ctx.setLineDash([]); ctx.strokeStyle=cols[i]; ctx.lineWidth=2;
-                ctx.beginPath(); ctx.moveTo(c.width-220,ly+7); ctx.lineTo(c.width-195,ly+7); ctx.stroke();
-                ctx.fillStyle='#2a2a40'; ctx.font='12px sans-serif';
-                ctx.fillText(name+' (train)',c.width-190,ly+12);
-                ctx.setLineDash([3,3]); ctx.strokeStyle=dash[i];
-                ctx.beginPath(); ctx.moveTo(c.width-220,ly+22); ctx.lineTo(c.width-195,ly+22); ctx.stroke();
-                ctx.fillText(name+' (val)',c.width-190,ly+27);
-                i++;
-            }
-            // ticks & labels
-            ctx.setLineDash([]); ctx.fillStyle='#888'; ctx.font='12px sans-serif';
-            ctx.fillText('0',pad,c.height-pad+20);
-            ctx.fillText(epochs.toString(),c.width-pad-20,c.height-pad+20);
-            ctx.fillText('Epoch',c.width/2-20,c.height-10);
-            for(let j=0;j<=10;j++){
-                const perc=100 - j*10;
-                const y=pad+j*(H/10)+4;
-                ctx.fillText(perc+'%',pad-40,y);
-            }
-            ctx.save(); ctx.translate(pad-30,c.height/2); ctx.rotate(-Math.PI/2);
-            ctx.fillText('Accuracy (%)', -20,0); ctx.restore();
-        }
-
-        function drawTrainingCurves(h, epochs) {
-            const c = document.getElementById('chartCanvas'), ctx = c.getContext('2d');
-            c.width=c.offsetWidth; c.height=c.offsetHeight;
-            ctx.clearRect(0,0,c.width,c.height);
-            const pad=40, w=c.width-2*pad, H=c.height-2*pad;
-            // axes
-            ctx.strokeStyle='#444'; ctx.lineWidth=1;
-            ctx.beginPath(); ctx.moveTo(pad,pad); ctx.lineTo(pad,c.height-pad);
-            ctx.lineTo(c.width-pad,c.height-pad); ctx.stroke();
-            // grid
-            ctx.strokeStyle='#2a2a2a'; ctx.setLineDash([5,5]);
-            for(let i=0;i<=5;i++){
-                const y=pad + i*(H/5);
-                ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(c.width-pad,y); ctx.stroke();
-            }
-            ctx.setLineDash([]);
-            // find mn/mx
-            let mn=Infinity, mx=-Infinity;
-            Object.values(h).forEach(arr=>{
-                if(Array.isArray(arr)){
-                    mn=Math.min(mn,...arr);
-                    mx=Math.max(mx,...arr);
-                }
-            });
-            // curves
-            const cols=['#667eea','#4ade80','#f59e0b','#ef4444'];
-            let i=0;
-            for(const [name, arr] of Object.entries(h)){
-                if(!Array.isArray(arr)) continue;
-                ctx.strokeStyle=cols[i]; ctx.lineWidth=2; ctx.beginPath();
-                arr.forEach((val,ep)=>{
-                    const x=pad+ep/(epochs-1)*w;
-                    const y=pad+H-((val-mn)/(mx-mn))*H;
-                    ep===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-                });
-                ctx.stroke();
-                // legend
-                ctx.fillStyle=cols[i]; ctx.fillRect(c.width-200,pad+i*25,15,15);
-                ctx.fillStyle='#2a2a40'; ctx.font='14px sans-serif';
-                ctx.fillText(name,c.width-180,pad+i*25+12);
-                i++;
-            }
-            // y-axis ticks
-            ctx.fillStyle='#888'; ctx.font='12px sans-serif';
-            for(let j=0;j<=5;j++){
-                const val = mn + (mx-mn)*(5-j)/5;
-                const y=pad+j*(H/5)+4;
-                ctx.fillText(val.toFixed(1),pad-35,y);
-            }
-            // x-axis labels
-            ctx.fillText('0',pad,c.height-pad+20);
-            ctx.fillText(epochs.toString(),c.width-pad-20,c.height-pad+20);
-            ctx.fillText('Epoch',c.width/2-20,c.height-10);
-            // y-axis title
-            ctx.save(); ctx.translate(15,c.height/2); ctx.rotate(-Math.PI/2);
-            ctx.fillText('Training Loss',-40,0); ctx.restore();
         }
 
         window.addEventListener('load', loadResults);

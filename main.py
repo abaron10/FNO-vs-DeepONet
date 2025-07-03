@@ -5,7 +5,6 @@ import numpy as np
 from data import DataModule
 from models import DeepONetOperator, FNOOperator, FNOEnsembleOperator, PyKANOperator
 from metrics import BenchmarkRunner 
-from visualizer import export_tensorboard_graph, export_onnx
 from datetime import datetime
 
 if __name__ == "__main__":
@@ -24,8 +23,8 @@ if __name__ == "__main__":
     GRID_SIZE = 64
     
     # CORRECTED: Use proper data sizes
-    TRAIN_SIZE = 500
-    TEST_SIZE = 100
+    TRAIN_SIZE = 1000
+    TEST_SIZE = 300
     
     dm = DataModule(grid=GRID_SIZE, n_train=TRAIN_SIZE, n_test=TEST_SIZE)
     dm.setup()
@@ -76,7 +75,7 @@ if __name__ == "__main__":
             width=16,               # Even narrower
             n_layers=3,             # Fewer layers
             in_channels=detected_channels,  # Use detected channels
-            lr=2e-3,                # Higher initial LR
+            lr=3e-3,                # Higher initial LR change for 2 in case
             step_size=150,
             gamma=0.5,
             weight_decay=5e-5,      # Less regularization
@@ -99,10 +98,27 @@ if __name__ == "__main__":
             lr=1e-3,
             epochs=500
         ),
+        FNOOperator(
+        device,
+        "Enhanced_Smaller_FNO_Better_training",
+        grid_size=GRID_SIZE,
+        modes=5,                # One more mode for better frequency representation
+        width=18,               # Slightly more capacity without overfitting
+        n_layers=3,             # Keep successful shallow architecture
+        in_channels=detected_channels,
+        lr=2e-3,                # Keep your successful learning rate
+        step_size=100,          # More frequent LR adjustments
+        gamma=0.65,             # Less aggressive decay for longer training
+        weight_decay=4e-5,      # Balanced regularization
+        epochs=800,             # Extended training for better convergence
+        use_augmentation=True,  # Keep data augmentation
+        share_weights=True,     # Keep parameter sharing
+        activation='gelu'       # Keep successful activation
+    ),   
     ]
     
     # Run benchmark
-    runner = BenchmarkRunner(models, dm, epochs=125)
+    runner = BenchmarkRunner(models, dm, epochs=350)
     runner.device = device  
     scores = runner.run()
     
