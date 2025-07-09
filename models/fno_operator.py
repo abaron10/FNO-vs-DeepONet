@@ -1,20 +1,34 @@
-"""
-FNO implementation for small datasets based on Li et al. (2020)
-"Fourier Neural Operator for Parametric Partial Differential Equations"
 
-Key adaptations for small datasets (500 samples):
-- Very few Fourier modes (4-6) to prevent overfitting
-- Narrow architecture (width 16-20)
-- Data augmentation through flips
-- Proper positional encoding with grid
-- Step learning rate decay
+'''
+Inicialización
 
-Accuracy calculation follows Li et al.:
-- Accuracy = 100 * (1 - relative_L2_error)
-- Where relative_L2_error = ||u_pred - u_true||_2 / ||u_true||_2
+1. Se definen n réplicas del FNO.
+2. A cada réplica se le asignas una semilla distinta para que sus pesos iniciales difieran.
+3. Setup individual
+    - Cada réplica construye su propia red (build_model()), optimizador (Adam) y scheduler (StepLR).
+4. Entrenamiento por réplicas
+    Por cada época, itero sobre las n réplicas:
+    a) Tomo la réplica i.
+    b) Le paso todo el train_loader y ejecuto su train_epoch().
+    c) Guardo su pérdida y su accuracy.
 
-Note: FFT operations create complex gradients that require special handling
-"""
+    Al terminar, promedio esas métricas para tener la “pérdida/accuracy del ensemble” de esa época.
+
+5. Validación conjunta
+
+    Igual que en entrenamiento: valido cada réplica por separado, recojo sus pérdidas y accuracies, y las promedio para tener métricas globales.
+
+Inferencia (predict)
+
+Doy la misma entrada a cada réplica y obtengo n predicciones (tensores).
+
+Calculo la media elemento a elemento de esas n salidas.
+
+El tensor promedio es la predicción final del ensemble.
+
+'''
+
+
 
 import torch
 import torch.nn as nn
@@ -32,8 +46,7 @@ class SpectralConv2d(nn.Module):
         self.modes1 = modes1
         self.modes2 = modes2
         
-        # Initialize weights with smaller scale for small datasets
-        self.scale = (1 / (in_channels * out_channels))
+        self.scale = (1 / (in_channels * out_channels)) ** 0.5  # Add square root
         self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, modes1, modes2, dtype=torch.cfloat))
         self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, modes1, modes2, dtype=torch.cfloat))
 
@@ -109,7 +122,7 @@ class FNOOperator(BaseOperator):
         
         # Early stopping
         self.best_val_loss = float('inf')
-        self.patience = 50
+        self.patience = 75
         self.patience_counter = 0
 
     def setup(self, data_info):
@@ -183,11 +196,11 @@ class FNOOperator(BaseOperator):
         """Initialize weights following best practices for small datasets"""
         for m in self.model.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.xavier_normal_(m.weight, gain=0.5)
+                nn.init.xavier_normal_(m.weight, gain=0.6)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
-                nn.init.xavier_normal_(m.weight, gain=0.5)
+                nn.init.xavier_normal_(m.weight, gain=0.6)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
@@ -307,10 +320,9 @@ class FNOOperator(BaseOperator):
         # Validation
         val_loss = float('inf')
         val_accuracy = 0
-        val_rel_l2 = 1.0  # Default relative L2 error
+        val_rel_l2 = 1.0  
         if val_loader is not None:
             val_loss, val_accuracy = self.evaluate(val_loader)
-            # Calculate relative L2 from accuracy: acc = 100*(1-L2) => L2 = 1-acc/100
             val_rel_l2 = 1 - val_accuracy/100
             
             # Early stopping
@@ -370,7 +382,6 @@ class FNOOperator(BaseOperator):
             out = self.model(x)
             loss = F.mse_loss(out, y)
             
-            # Calculate accuracy using Li et al. method (same as training)
             # Compute per-sample relative L2 error
             diff = (out - y).view(out.size(0), -1)
             true = y.view(y.size(0), -1)
@@ -398,7 +409,6 @@ class FNOOperator(BaseOperator):
         # Normalize
         x = (x - self.input_mean) / self.input_std
         
-        # Add grid
         grid = self._create_grid(x.shape, x.device)
         x = torch.cat([x, grid], dim=1)
         
@@ -452,7 +462,6 @@ class FNOEnsembleOperator(FNOOperator):
             self.build_model()
             self.models.append(self.model)
             
-            # Create optimizer
             optimizer = torch.optim.Adam(
                 self.model.parameters(), 
                 lr=self.lr, 
@@ -460,7 +469,6 @@ class FNOEnsembleOperator(FNOOperator):
             )
             self.optimizers.append(optimizer)
             
-            # Create scheduler
             scheduler = StepLR(optimizer, step_size=self.step_size, gamma=self.gamma)
             self.schedulers.append(scheduler)
         
@@ -522,7 +530,6 @@ class FNOEnsembleOperator(FNOOperator):
     
     def get_model_info(self):
         """Get ensemble model info"""
-        # Count parameters from first model (all should be same size)
         total_params = sum(p.numel() for p in self.models[0].parameters())
         trainable_params = sum(p.numel() for p in self.models[0].parameters() if p.requires_grad)
         
@@ -537,7 +544,7 @@ class FNOEnsembleOperator(FNOOperator):
                 "n_models": self.n_models,
                 "share_weights": self.share_weights
             },
-            "parameters": trainable_params * self.n_models,  # Total params across all models
+            "parameters": trainable_params * self.n_models,  
             "parameters_per_model": trainable_params,
             "optimizer": f"Adam(lr={self.lr})",
             "accuracy_method": "Li et al. (100*(1-relative_L2_error))"

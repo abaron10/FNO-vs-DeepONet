@@ -1,12 +1,12 @@
 """
-FNO Results Matplotlib Visualizer
-A separate file to create professional matplotlib charts from your FNO training results.
+Enhanced FNO Results Matplotlib Visualizer
+Now creates individual accuracy plots for better readability
 
-Usage:
-    After running your main script, use this to create visualizations:
-    
-    from fno_matplotlib_visualizer import create_fno_charts
-    create_fno_charts('./visualizer/benchmark_results.json')
+Key changes:
+- Added create_individual_accuracy_plots() method
+- Creates separate accuracy plot for each model
+- Cleaner visualization with better line styles
+- Maintains all original functionality
 """
 
 import matplotlib.pyplot as plt
@@ -47,15 +47,15 @@ class FNOChartCreator:
         with open(json_path, 'r') as f:
             return json.load(f)
 
-    def create_training_curves(self, results_data, save_path=None):
-        """Create training and validation curves"""
+    def create_training_curves(self, results_data, save_path=None, create_individual=True):
+        """Create training and validation curves (optionally with individual plots)"""
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
         
         # Get data
         training_history = results_data.get('training_history', {})
         accuracy_history = results_data.get('accuracy_history', {})
         
-        # Plot 1: Loss curves
+        # Plot 1: Loss curves (keep as is)
         if training_history:
             for i, (model_name, loss_values) in enumerate(training_history.items()):
                 color = self.colors[i % len(self.colors)]
@@ -72,29 +72,22 @@ class FNOChartCreator:
             ax1.grid(True, alpha=0.3)
             ax1.legend()
 
-        # Plot 2: Accuracy curves
+        # Plot 2: Combined accuracy overview (simplified)
         if accuracy_history:
             for i, (model_name, acc_data) in enumerate(accuracy_history.items()):
                 color = self.colors[i % len(self.colors)]
                 clean_name = model_name.replace('_64x64', '')
                 
-                # Plot training accuracy
-                train_acc = acc_data.get('train', [])
-                if train_acc:
-                    epochs = range(1, len(train_acc) + 1)
-                    ax2.plot(epochs, train_acc, color=color, linewidth=2, 
-                            label=f'{clean_name} (train)', alpha=0.8)
-                
-                # Plot validation accuracy
+                # Only plot validation accuracy for clarity
                 val_acc = acc_data.get('validation', [])
                 if val_acc:
                     epochs = range(1, len(val_acc) + 1)
                     ax2.plot(epochs, val_acc, color=color, linewidth=2, 
-                            linestyle='--', label=f'{clean_name} (val)', alpha=0.8)
+                            label=clean_name, alpha=0.8)
             
             ax2.set_xlabel('Epoch')
-            ax2.set_ylabel('Accuracy (%)')
-            ax2.set_title('Training & Validation Accuracy')
+            ax2.set_ylabel('Validation Accuracy (%)')
+            ax2.set_title('Validation Accuracy Overview')
             ax2.grid(True, alpha=0.3)
             ax2.legend()
             ax2.set_ylim([75, 95])
@@ -105,7 +98,145 @@ class FNOChartCreator:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
             print(f"📊 Training curves saved: {save_path}")
         
+        # Create individual accuracy plots if requested
+        if create_individual and accuracy_history:
+            output_dir = Path(save_path).parent if save_path else Path('.')
+            self.create_individual_accuracy_plots(accuracy_history, output_dir)
+        
         return fig
+
+    def create_individual_accuracy_plots(self, accuracy_history, output_dir):
+        """Create individual accuracy plots for each model"""
+        output_path = Path(output_dir)
+        accuracy_dir = output_path / 'individual_accuracy_plots'
+        accuracy_dir.mkdir(exist_ok=True)
+        
+        print(f"\n📈 Creating individual accuracy plots in: {accuracy_dir}")
+        
+        for i, (model_name, acc_data) in enumerate(accuracy_history.items()):
+            clean_name = model_name.replace('_64x64', '')
+            
+            # Create figure for this model
+            fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+            
+            # Get data
+            train_acc = acc_data.get('train', [])
+            val_acc = acc_data.get('validation', [])
+            
+            # Plot training accuracy
+            if train_acc:
+                epochs = range(1, len(train_acc) + 1)
+                ax.plot(epochs, train_acc, color='blue', linewidth=2.5, 
+                       label='Training', alpha=0.8, marker='o', markersize=3, 
+                       markevery=max(1, len(epochs)//20))  # Show markers every 5%
+            
+            # Plot validation accuracy
+            if val_acc:
+                epochs = range(1, len(val_acc) + 1)
+                ax.plot(epochs, val_acc, color='red', linewidth=2.5, 
+                       label='Validation', alpha=0.8, linestyle='--',
+                       marker='s', markersize=3, markevery=max(1, len(epochs)//20))
+            
+            # Styling
+            ax.set_xlabel('Epoch', fontsize=12)
+            ax.set_ylabel('Accuracy (%)', fontsize=12)
+            ax.set_title(f'Training & Validation Accuracy: {clean_name}', 
+                        fontsize=14, fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=11, loc='lower right')
+            
+            # Set y-axis limits based on data
+            all_values = train_acc + val_acc
+            if all_values:
+                min_val = max(70, min(all_values) - 2)
+                max_val = min(100, max(all_values) + 2)
+                ax.set_ylim([min_val, max_val])
+            
+            # Add final accuracy annotation
+            if val_acc:
+                final_val_acc = val_acc[-1]
+                ax.annotate(f'Final: {final_val_acc:.2f}%', 
+                           xy=(len(val_acc), final_val_acc),
+                           xytext=(10, 10), textcoords='offset points',
+                           bbox=dict(boxstyle='round,pad=0.3', fc='yellow', alpha=0.7),
+                           fontsize=10, fontweight='bold')
+            
+            # Add smoothed trend line (optional)
+            if len(val_acc) > 20:
+                # Simple moving average for trend
+                window = min(20, len(val_acc)//5)
+                trend = pd.Series(val_acc).rolling(window=window, center=True).mean()
+                ax.plot(epochs, trend, color='green', linewidth=1.5, 
+                       alpha=0.5, label='Trend (MA)', linestyle=':')
+            
+            plt.tight_layout()
+            
+            # Save individual plot
+            filename = f"accuracy_{clean_name.replace(' ', '_').lower()}.png"
+            save_path = accuracy_dir / filename
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            print(f"   ✓ {clean_name}: {filename}")
+        
+        # Create a combined grid view of all models (optional)
+        self.create_accuracy_grid_view(accuracy_history, accuracy_dir)
+
+    def create_accuracy_grid_view(self, accuracy_history, output_dir):
+        """Create a grid view of all accuracy plots"""
+        n_models = len(accuracy_history)
+        if n_models == 0:
+            return
+        
+        # Calculate grid dimensions
+        cols = min(2, n_models)
+        rows = (n_models + cols - 1) // cols
+        
+        fig, axes = plt.subplots(rows, cols, figsize=(12*cols, 6*rows))
+        if n_models == 1:
+            axes = [axes]
+        else:
+            axes = axes.flatten() if rows > 1 else axes
+        
+        for idx, (model_name, acc_data) in enumerate(accuracy_history.items()):
+            ax = axes[idx] if n_models > 1 else axes[0]
+            clean_name = model_name.replace('_64x64', '')
+            
+            # Plot data
+            train_acc = acc_data.get('train', [])
+            val_acc = acc_data.get('validation', [])
+            
+            if train_acc:
+                epochs = range(1, len(train_acc) + 1)
+                ax.plot(epochs, train_acc, color='blue', linewidth=2, 
+                       label='Training', alpha=0.8)
+            
+            if val_acc:
+                epochs = range(1, len(val_acc) + 1)
+                ax.plot(epochs, val_acc, color='red', linewidth=2, 
+                       label='Validation', alpha=0.8, linestyle='--')
+            
+            # Styling
+            ax.set_xlabel('Epoch')
+            ax.set_ylabel('Accuracy (%)')
+            ax.set_title(clean_name, fontsize=12, fontweight='bold')
+            ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=9)
+            
+            # Set consistent y-axis
+            ax.set_ylim([75, 95])
+        
+        # Remove empty subplots
+        for idx in range(n_models, len(axes)):
+            fig.delaxes(axes[idx])
+        
+        plt.suptitle('Accuracy Comparison Grid', fontsize=16, fontweight='bold')
+        plt.tight_layout()
+        
+        save_path = output_dir / 'accuracy_grid_view.png'
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        print(f"   ✓ Grid view: accuracy_grid_view.png")
 
     def create_individual_charts(self, results_data, output_dir):
         """Create individual chart files for HTML display"""
@@ -355,7 +486,7 @@ class FNOChartCreator:
         return df
 
 
-def create_fno_charts(json_file_path, output_dir='./fno_charts', show_plots=False):
+def create_fno_charts(json_file_path, output_dir='./fno_charts', show_plots=False, create_individual_accuracy=True):
     """
     Main function to create all FNO charts from your JSON results file
     
@@ -363,6 +494,7 @@ def create_fno_charts(json_file_path, output_dir='./fno_charts', show_plots=Fals
         json_file_path: Path to your JSON results file (e.g., 'results_fno_20250703_122132.json')
         output_dir: Directory to save charts (default: './fno_charts')
         show_plots: Whether to display plots (default: False for batch processing)
+        create_individual_accuracy: Whether to create individual accuracy plots (default: True)
     
     Returns:
         dict: Paths to all created files
@@ -391,7 +523,7 @@ def create_fno_charts(json_file_path, output_dir='./fno_charts', show_plots=Fals
     
     # 1. Training curves (with fixed filename for HTML)
     curves_path = output_path / "training_curves.png"
-    fig1 = chart_creator.create_training_curves(results, save_path=curves_path)
+    fig1 = chart_creator.create_training_curves(results, save_path=curves_path, create_individual=create_individual_accuracy)
     if fig1:
         created_files['training_curves'] = curves_path
         if show_plots:
@@ -444,6 +576,11 @@ def create_fno_charts(json_file_path, output_dir='./fno_charts', show_plots=Fals
     for chart_name in html_charts:
         if chart_name in created_files:
             print(f"   • {chart_name}: {created_files[chart_name].name}")
+    
+    # Check if individual accuracy plots were created
+    accuracy_dir = output_path / 'individual_accuracy_plots'
+    if accuracy_dir.exists():
+        print(f"\n📈 Individual accuracy plots saved in: {accuracy_dir}")
     
     return created_files
 
@@ -512,9 +649,9 @@ def create_comprehensive_report(json_file_path, output_dir='./fno_results'):
     
     created_files = {}
     
-    # 1. Training curves
+    # 1. Training curves with individual accuracy plots
     curves_path = output_path / f"training_curves_{timestamp}.png"
-    fig1 = chart_creator.create_training_curves(results_data, save_path=curves_path)
+    fig1 = chart_creator.create_training_curves(results_data, save_path=curves_path, create_individual=True)
     if fig1:
         created_files['training_curves'] = curves_path
         plt.close(fig1)
@@ -592,11 +729,14 @@ def analyze_fno_results(json_file_path, output_dir='./fno_analysis'):
 
 if __name__ == "__main__":
     # Demo with your actual data structure
-    print("🎨 FNO Results Matplotlib Visualizer")
+    print("🎨 Enhanced FNO Results Matplotlib Visualizer")
+    print("✨ Now creates individual accuracy plots for better readability!")
     print("💡 Usage examples:")
     print("  create_fno_charts('./visualizer/benchmark_results.json')")
     print("  create_charts_from_latest_results('./visualizer')")
     print("  analyze_fno_results('./visualizer/benchmark_results.json')")
     print("📊 This will create comprehensive visualizations from your JSON results!")
     
-    create_fno_charts('/Users/andres.baron/Documents/Computer-Science/Tesis/Laboratory/visualizer/benchmark_results.json')
+    # Create charts with individual accuracy plots
+    create_fno_charts('/Users/andres.baron/Documents/Computer-Science/Tesis/Laboratory/visualizer/benchmark_results.json', 
+                      create_individual_accuracy=True)

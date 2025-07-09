@@ -1,6 +1,0 @@
-Model,Accuracy (%),Relative L2,Parameters,Training Time (min),MAE,MSE
-Standard_FNO,87.71,0.1229,"119,777",38.3,0.045056,0.004009
-Smaller_FNO_shared_weights,89.53,0.1047,"10,833",27.8,0.037502,0.003021
-Ensemble_FNO,89.54,0.1046,"104,518",73.2,0.036603,0.003047
-Enhanced_Smaller_FNO_Better_training,89.51,0.1049,"19,175",32.4,0.037673,0.003032
-Enhanced_Smaller_FNO_Advanced_Training,90.18,0.0982,"10,833",28.3,0.035047,0.002659

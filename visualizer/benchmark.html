@@ -125,18 +125,97 @@
         }
         canvas { width:100%; height:400px; display:block; }
 
-        /* Predictions */
-        .image-grid {
-            display:flex; flex-direction:column; gap:1.5em;
-            margin-top:1em;
+        /* Individual accuracy plots */
+        .accuracy-plots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2em;
+            margin-top: 1em;
         }
-        .model-image {
-            width:100%; text-align:center;
+        .accuracy-plot-card {
+            background: #fff;
+            border: 1px solid #dde4f2;
+            border-radius: 4px;
+            padding: 1em;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .model-image img {
-            width:70%; height:auto;
-            border:1px solid #dde4f2; border-radius:4px;
-            box-shadow:0 2px 6px rgba(0,0,0,0.04);
+        .accuracy-plot-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .accuracy-plot-card h4 {
+            color: #3f51b5;
+            margin-bottom: 0.5em;
+            font-size: 1.1em;
+            text-align: center;
+        }
+        .accuracy-plot-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 2px;
+        }
+
+        /* Grid view container */
+        .grid-view-container {
+            background: #fff;
+            border: 1px solid #dde4f2;
+            border-radius: 4px;
+            padding: 1em;
+            margin-top: 2em;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+
+        /* Individual prediction view */
+        .individual-prediction {
+            text-align: center;
+            padding: 2em;
+        }
+        .individual-prediction img {
+            width: 80%;
+            max-width: 800px;
+            height: auto;
+            border: 2px solid #dde4f2;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin: 0 auto;
+            display: block;
+        }
+        .prediction-info {
+            margin-top: 1.5em;
+            padding: 1em;
+            background: #f9fbff;
+            border-radius: 4px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        /* Navigation buttons */
+        .prediction-nav-buttons {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            max-width: 800px;
+            margin: 1em auto;
+        }
+        .nav-button {
+            padding: 0.5em 1.5em;
+            background: #3f51b5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: "Latin Modern Roman", serif;
+            transition: background 0.2s;
+        }
+        .nav-button:hover {
+            background: #5c6bc0;
+        }
+        .nav-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
         }
 
         /* Info labels */
@@ -147,6 +226,41 @@
         .info-value {
             font-family:"Latin Modern Mono", monospace;
             color:#2a2a40;
+        }
+
+        /* Tab navigation for switching views */
+        .tab-navigation {
+            display: flex;
+            gap: 1em;
+            margin-bottom: 1em;
+            border-bottom: 2px solid #dde4f2;
+            flex-wrap: wrap; /* Allow wrapping for many models */
+        }
+        .tab-button {
+            padding: 0.5em 1.5em;
+            background: none;
+            border: none;
+            color: #5a5f6d;
+            cursor: pointer;
+            font-family: "Latin Modern Roman", serif;
+            font-size: 1em;
+            transition: color 0.2s, border-color 0.2s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+        .tab-button:hover {
+            color: #3f51b5;
+        }
+        .tab-button.active {
+            color: #3f51b5;
+            border-bottom-color: #3f51b5;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
         }
     </style>
 </head>
@@ -206,7 +320,7 @@
 
             <!-- Accuracy Calculation Note -->
             <div id="accuracy-note" class="accuracy-note" style="display:none;">
-                <h4>⚠️ Accuracy Calculation Method</h4>
+                <h4>Accuracy Calculation Method</h4>
                 <p id="accuracy-method"></p>
             </div>
 
@@ -227,8 +341,8 @@
                             <th>MAE ↓</th>
                             <th>Relative L2 ↓</th>
                             <th>Accuracy ↑</th>
-                            <th>Training Time (s)</th>
-                            <th>Time/Epoch (s)</th>
+                            <th>Training (s)</th>
+                            <th>Time/Epoch</th>
                             <th>Parameters</th>
                         </tr>
                     </thead>
@@ -239,14 +353,46 @@
             <!-- Training & Validation Accuracy Curves -->
             <div class="section">
                 <h2>Training &amp; Validation Accuracy Curves</h2>
-                <div class="chart-container">
-                    <img id="trainingCurvesChart" src="./fno_charts/training_curves.png" 
-                         alt="Training and Validation Accuracy Curves" 
-                         style="width: 100%; height: auto; max-height: 500px; object-fit: contain;"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <div style="display: none; text-align: center; padding: 2em; color: #888; background: #f9f9f9; border-radius: 4px;">
-                        📊 Training curves chart not available<br>
-                        <small>Run the matplotlib visualizer to generate charts</small>
+                
+                <!-- Tab Navigation -->
+                <div class="tab-navigation">
+                    <button class="tab-button active" onclick="switchTab('overview')">Overview</button>
+                    <button class="tab-button" onclick="switchTab('individual')">Individual Models</button>
+                    <button class="tab-button" onclick="switchTab('grid')">Grid View</button>
+                </div>
+
+                <!-- Overview Tab -->
+                <div id="overview-tab" class="tab-content active">
+                    <div class="chart-container">
+                        <img id="trainingCurvesChart" src="../fno_charts/training_curves.png" 
+                             alt="Training and Validation Accuracy Curves" 
+                             style="width: 100%; height: auto; max-height: 500px; object-fit: contain;"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div style="display: none; text-align: center; padding: 2em; color: #888; background: #f9f9f9; border-radius: 4px;">
+                            📊 Training curves chart not available<br>
+                            <small>Run the matplotlib visualizer to generate charts</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Individual Models Tab -->
+                <div id="individual-tab" class="tab-content">
+                    <div id="individual-accuracy-plots" class="accuracy-plots-grid">
+                        <!-- Individual plots will be dynamically added here -->
+                    </div>
+                </div>
+
+                <!-- Grid View Tab -->
+                <div id="grid-tab" class="tab-content">
+                    <div class="grid-view-container">
+                        <img src="../fno_charts/individual_accuracy_plots/accuracy_grid_view.png" 
+                             alt="Accuracy Comparison Grid" 
+                             style="width: 100%; height: auto; object-fit: contain;"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div style="display: none; text-align: center; padding: 2em; color: #888; background: #f9f9f9; border-radius: 4px;">
+                            📊 Grid view not available<br>
+                            <small>Run the enhanced matplotlib visualizer to generate individual plots</small>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -259,7 +405,7 @@
                     <div class="card">
                         <h3>Training Time vs Accuracy</h3>
                         <div class="chart-container" style="padding: 1em;">
-                            <img src="./fno_charts/training_time_vs_accuracy.png" 
+                            <img src="../fno_charts/training_time_vs_accuracy.png" 
                                  alt="Training Time vs Accuracy" 
                                  style="width: 100%; height: auto; max-height: 350px; object-fit: contain;"
                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
@@ -273,7 +419,7 @@
                     <div class="card">
                         <h3>Relative L2 Error Comparison</h3>
                         <div class="chart-container" style="padding: 1em;">
-                            <img src="./fno_charts/relative_l2_error.png" 
+                            <img src="../fno_charts/relative_l2_error.png" 
                                  alt="Relative L2 Error Comparison" 
                                  style="width: 100%; height: auto; max-height: 350px; object-fit: contain;"
                                  onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
@@ -289,7 +435,7 @@
             <div class="section">
                 <h2>Model Efficiency Analysis</h2>
                 <div class="chart-container">
-                    <img src="./fno_charts/model_efficiency.png" 
+                    <img src="../fno_charts/model_efficiency.png" 
                          alt="Model Efficiency - Accuracy per 1000 Parameters" 
                          style="width: 100%; height: auto; max-height: 500px; object-fit: contain;"
                          onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
@@ -298,28 +444,28 @@
                         <small>This chart shows accuracy per 1000 parameters - higher values indicate more efficient models</small>
                     </div>
                 </div>
-                <div style="margin-top: 1em; padding: 1em; background: #f0f4ff; border-left: 4px solid #3f51b5; border-radius: 4px;">
-                    <h4 style="margin-bottom: 0.5em; color: #3f51b5;">💡 Understanding Model Efficiency</h4>
-                    <p style="margin: 0; color: #2a3d66; font-size: 0.95em;">
-                        This metric shows how much accuracy each model achieves per 1000 parameters. 
-                        Higher values indicate more parameter-efficient models that achieve better performance 
-                        with fewer parameters. This is especially important for deployment scenarios with 
-                        memory or computational constraints.
-                    </p>
-                </div>
+           
             </div>
 
             <!-- Sample Predictions -->
             <div class="section">
                 <h2>Sample Predictions</h2>
-                <div id="predictions" class="image-grid"></div>
+               
+                <!-- Tab Navigation for Predictions -->
+                <div class="tab-navigation" id="predictions-nav">
+                    <!-- Model tabs will be added dynamically -->
+                </div>
+
+                <!-- Individual Model Views will be added dynamically -->
+                <div id="individual-predictions-container"></div>
             </div>
         </div>
     </div>
 
     <script>
-        function safeGet(obj, path, def=0) {
-            return path.split('.').reduce((o,k)=>(o&&o[k]!=null)?o[k]:def, obj);
+        function safeGet(obj, path, def=null) {
+            const value = path.split('.').reduce((o,k)=>(o&&o[k]!=null)?o[k]:null, obj);
+            return value !== null ? value : def;
         }
 
         async function loadResults() {
@@ -383,19 +529,106 @@
             });
 
             fillMetrics(d.models);
+            
+            // Generate individual accuracy plots
+            generateIndividualAccuracyPlots(d.models);
+            
+            // Generate prediction tabs
+            generatePredictionTabs(d.models);
 
-            // Charts are now handled by matplotlib images, no need for canvas drawing
+            // Generate prediction tabs
+            generatePredictionTabs(d.models);
+        }
 
-            const pred = document.getElementById('predictions');
-            pred.innerHTML = '';
-            d.models.forEach(m=>{
+        // Global variable to store models for tab functionality
+        let globalModels = [];
+
+        function generatePredictionTabs(models) {
+            globalModels = models; // Store for later use
+            
+            // Remove duplicates based on model name
+            const uniqueModels = [];
+            const seenNames = new Set();
+            
+            models.forEach(model => {
+                const cleanName = model.name.replace('_64x64', '');
+                if (!seenNames.has(cleanName)) {
+                    seenNames.add(cleanName);
+                    uniqueModels.push(model);
+                }
+            });
+            
+            // Update global models to use unique list
+            globalModels = uniqueModels;
+            
+            // Add individual model tabs to navigation
+            const nav = document.getElementById('predictions-nav');
+            nav.innerHTML = ''; // Clear any existing tabs
+            
+            uniqueModels.forEach((model, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'tab-button';
+                if (index === 0) btn.classList.add('active'); // Make first tab active
+                btn.textContent = model.name.replace('_64x64', '');
+                btn.setAttribute('onclick', `switchPredictionTab(${index})`);
+                nav.appendChild(btn);
+            });
+
+            // Create individual model views
+            const individualContainer = document.getElementById('individual-predictions-container');
+            individualContainer.innerHTML = '';
+            
+            uniqueModels.forEach((model, index) => {
                 const div = document.createElement('div');
-                div.className='model-image';
-                div.innerHTML=`
-                    <h3>${m.name}</h3>
-                    <img src="${m.plot_path}" alt="${m.name}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22><rect fill=%22%23333%22 width=%22400%22 height=%22300%22/><text x=%2250%%22 y=%2250%%22 fill=%22%23888%22 text-anchor=%22middle%22>Image not found</text></svg>'">
+                div.id = `prediction-tab-${index}`;
+                div.className = 'tab-content';
+                if (index === 0) div.classList.add('active'); // Make first tab content active
+                
+                div.innerHTML = `
+                    <div class="individual-prediction">
+                    
+                        <img src="${model.plot_path}" alt="${model.name}" 
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22><rect fill=%22%23333%22 width=%22400%22 height=%22300%22/><text x=%2250%%22 y=%2250%%22 fill=%22%23888%22 text-anchor=%22middle%22>Image not found</text></svg>'">
+                        <div class="prediction-info">
+                            <h3>${model.name.replace('_64x64', '')}</h3>
+                            <div class="info-item">
+                                <span class="info-label">Parameters:</span>
+                                <span class="info-value">${(safeGet(model, 'model_info.parameters', 0) || 0).toLocaleString()}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Final Accuracy:</span>
+                                <span class="info-value">${typeof safeGet(model, 'metrics.accuracy') === 'number' ? safeGet(model, 'metrics.accuracy').toFixed(2) + '%' : '–'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Relative L2 Error:</span>
+                                <span class="info-value">${typeof safeGet(model, 'metrics.relative_l2') === 'number' ? safeGet(model, 'metrics.relative_l2').toFixed(4) : '–'}</span>
+                            </div>
+                        </div>
+                    
+                    </div>
                 `;
-                pred.appendChild(div);
+                individualContainer.appendChild(div);
+            });
+        }
+
+        function switchPredictionTab(tabId) {
+            // Update button states
+            const buttons = document.querySelectorAll('#predictions-nav .tab-button');
+            buttons.forEach((btn, index) => {
+                if (index === tabId) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Update content visibility
+            document.querySelectorAll('[id^="prediction-tab-"]').forEach((tab, index) => {
+                if (index === tabId) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
             });
         }
 
@@ -424,11 +657,71 @@
                     <td style="color:${mm.accuracy===best.accuracy?'#3f51b5':'inherit'}">${fmt(mm.accuracy,1)}%</td>
                     <td>${fmt(mm.wall_sec,2)}</td>
                     <td>${fmt(mm.avg_time_per_epoch,3)}</td>
-                    <td>${safeGet(m,'model_info.parameters',0).toLocaleString()}</td>
+                    <td>${(safeGet(m,'model_info.parameters',0) || 0).toLocaleString()}</td>
                 `;
                 tb.appendChild(row);
             });
         }
+
+        function generateIndividualAccuracyPlots(models) {
+            const container = document.getElementById('individual-accuracy-plots');
+            container.innerHTML = '';
+            
+            models.forEach(model => {
+                // Convert model name to filename format
+                const cleanName = model.name.replace('_64x64', '');
+                const filename = `accuracy_${cleanName.toLowerCase().replace(/\s+/g, '_').replace(/_+/g, '_')}.png`;
+                
+                const plotCard = document.createElement('div');
+                plotCard.className = 'accuracy-plot-card';
+                plotCard.innerHTML = `
+                    <h4>${cleanName}</h4>
+                    <img src="../fno_charts/individual_accuracy_plots/${filename}" 
+                         alt="${cleanName} Accuracy Plot"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div style="display: none; text-align: center; padding: 2em; color: #888; background: #f9f9f9; border-radius: 4px;">
+                        📊 Individual plot not available<br>
+                        <small>Run the enhanced visualizer with create_individual_accuracy=True</small>
+                    </div>
+                `;
+                container.appendChild(plotCard);
+            });
+        }
+
+        function switchTab(tabName) {
+            // Update button states
+            document.querySelectorAll('.tab-navigation:not(#predictions-nav) .tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update content visibility
+            document.querySelectorAll('.section:nth-of-type(5) .tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+
+        function navigatePrediction(currentIndex, direction) {
+            const newIndex = currentIndex + direction;
+            switchPredictionTab(newIndex);
+        }
+
+        // Add keyboard navigation for predictions
+        document.addEventListener('keydown', function(e) {
+            // Check if we're in an individual prediction view
+            const activeTab = document.querySelector('[id^="prediction-tab-"].active');
+            if (activeTab) {
+                const currentIndex = parseInt(activeTab.id.split('-').pop());
+                const totalModels = document.querySelectorAll('[id^="prediction-tab-"]').length;
+                
+                if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                    navigatePrediction(currentIndex, -1);
+                } else if (e.key === 'ArrowRight' && currentIndex < totalModels - 1) {
+                    navigatePrediction(currentIndex, 1);
+                }
+            }
+        });
 
         window.addEventListener('load', loadResults);
     </script>

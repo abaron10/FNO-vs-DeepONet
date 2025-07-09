@@ -23,8 +23,8 @@ if __name__ == "__main__":
     GRID_SIZE = 64
     
     # CORRECTED: Use proper data sizes
-    TRAIN_SIZE = 1000
-    TEST_SIZE = 300
+    TRAIN_SIZE = 1100
+    TEST_SIZE = 500
     
     dm = DataModule(grid=GRID_SIZE, n_train=TRAIN_SIZE, n_test=TEST_SIZE)
     dm.setup()
@@ -115,10 +115,28 @@ if __name__ == "__main__":
         share_weights=True,     # Keep parameter sharing
         activation='gelu'       # Keep successful activation
     ),   
+
+    FNOOperator(
+    device,
+    "Optimized_95_Target_FNO",
+    grid_size=GRID_SIZE,
+    modes=7,                # Sweet spot for 64x64
+    width=30,               # More capacity without overfitting  
+    n_layers=4,             # Deeper for better representation
+    in_channels=detected_channels,
+    lr=2.2e-3,              # Slightly higher than your best
+    step_size=120,          # More frequent adjustments
+    gamma=0.68,             # Gentler decay
+    weight_decay=1.8e-5,    # Fine-tuned regularization
+    epochs=1200,            # Longer convergence
+    use_augmentation=True,
+    share_weights=True,     # Keep parameter efficiency
+    activation='gelu',
+)
     ]
     
     # Run benchmark
-    runner = BenchmarkRunner(models, dm, epochs=350)
+    runner = BenchmarkRunner(models, dm, epochs=500)
     runner.device = device  
     scores = runner.run()
     
