@@ -40,7 +40,7 @@ The FNO model is configured with the following parameters:
 - Number of modes: (16, 16)
 - Number of layers: 3
 
-## Dataset
+## Datasets
 
 The script uses the `load_darcy_flow_small` dataset with:
 - 100 training samples
