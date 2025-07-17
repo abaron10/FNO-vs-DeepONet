@@ -1,0 +1,8 @@
+
+ppython:S107V"MMethod "__init__" has 15 parameters, which is greater than the 13 authorized.(ÄÁšÃşÿÿÿÿ8±®Áòş2
+ˆpython:S1871Ë"cEither merge this branch with the identical one on line "199" or change one of the implementations.(î¯Íøÿÿÿÿ8³®Áòş2
+tpython:S3776è"TRefactor this function to reduce its Cognitive Complexity from 23 to the 15 allowed.(Òğâ8´®Áòş2
+epython:S3457ı"EAdd replacement fields or use a normal string instead of an f-string.(ñİñ8µ®Áòş2
+jpython:S3457¥"EAdd replacement fields or use a normal string instead of an f-string.(±ƒ©ùşÿÿÿÿ8µ®Áòş2
+epython:S3457¨"EAdd replacement fields or use a normal string instead of an f-string.(›–ã¦8µ®Áòş2
+Upython:S1481•"0Remove the unused local variable "total_params".(ËˆÀıÿÿÿÿ8µ®Áòş2
