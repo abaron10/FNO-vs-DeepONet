@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>DeepONet Benchmark Results</title>
+        <!-- Fuentes estilo LaTeX -->
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Latin+Modern+Roman&family=Latin+Modern+Mono&display=swap"
+        />
+        <style>
+            /* Reset */
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            /* Body */
+            body {
+                font-family: "Latin Modern Roman", serif;
+                background: #f5f7fa;
+                color: #2a2a40;
+                line-height: 1.6;
+                padding: 20px;
+            }
+
+            /* Headings */
+            h1 {
+                font-size: 2.8em;
+                text-align: center;
+                background: linear-gradient(90deg, #3f51b5, #5c6bc0);
+                color: #fff;
+                padding: 0.5em 0;
+                border-radius: 4px;
+                margin-bottom: 1em;
+            }
+            h2 {
+                font-size: 1.8em;
+                color: #3f51b5;
+                margin-top: 2em;
+                padding-bottom: 0.2em;
+                border-bottom: 2px solid #3f51b5;
+            }
+            h3 {
+                font-size: 1.3em;
+                color: #3f51b5;
+                margin-bottom: 0.5em;
+            }
+            .subtitle {
+                text-align: center;
+                color: #5a5f6d;
+                margin-bottom: 2em;
+                font-style: italic;
+            }
+
+            /* Sections & Cards */
+            .section {
+                background: #fff;
+                border-radius: 6px;
+                padding: 1.5em;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+                margin-bottom: 2em;
+            }
+            .grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1.5em;
+            }
+            .card {
+                flex: 1 1 300px;
+                background: #fff;
+                border-left: 4px solid transparent;
+                padding: 1.2em;
+                border-radius: 4px;
+                position: relative;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            .card::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: 4px;
+                background: linear-gradient(180deg, #3f51b5, #5c6bc0);
+                border-radius: 4px 0 0 4px;
+            }
+            .card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+            }
+
+            /* Alerts */
+            .loading,
+            .error {
+                border-radius: 6px;
+                padding: 1em 1.2em;
+                margin: 1em 0;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+                font-family: "Latin Modern Roman", serif;
+            }
+            .loading {
+                background: #eef2ff;
+                border-left: 4px solid #3f51b5;
+                color: #2a3d66;
+            }
+            .error {
+                background: #ffebeb;
+                border-left: 4px solid #c0392b;
+                color: #641e16;
+            }
+
+            /* Accuracy note */
+            .accuracy-note {
+                background: #eef3ff;
+                border-left: 4px solid #3f51b5;
+                padding: 1em;
+                margin: 1.5em 0;
+                font-size: 0.9em;
+            }
+            .accuracy-note h4 {
+                margin-bottom: 0.5em;
+                color: #3f51b5;
+                font-style: normal;
+            }
+
+            /* Tables */
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 1em;
+                font-size: 0.95em;
+                background: #fff;
+            }
+            thead tr {
+                border-bottom: 2px solid #3f51b5;
+            }
+            th,
+            td {
+                padding: 0.6em 0.8em;
+                text-align: left;
+            }
+            tbody tr:nth-child(odd) {
+                background: #f9fbff;
+            }
+            tbody tr:hover {
+                background: #e8f0fb;
+            }
+            tbody tr + tr {
+                border-top: 1px solid #dde4f2;
+            }
+            th {
+                font-family: "Latin Modern Roman", serif;
+                font-weight: normal;
+                color: #3f51b5;
+            }
+            td {
+                font-family: "Latin Modern Mono", monospace;
+                color: #2a2a40;
+            }
+
+            /* Charts – espacio extra arriba y a la izquierda */
+            .chart-container {
+                background: #fff;
+                border: 1px solid #dde4f2;
+                border-radius: 4px;
+                padding: 2em 1em 1em 80px;
+                /* padding: top right bottom left */
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            }
+            canvas {
+                width: 100%;
+                height: 400px;
+                display: block;
+            }
+
+            /* Individual accuracy plots */
+            .accuracy-plots-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+                gap: 2em;
+                margin-top: 1em;
+            }
+            .accuracy-plot-card {
+                background: #fff;
+                border: 1px solid #dde4f2;
+                border-radius: 4px;
+                padding: 1em;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            .accuracy-plot-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            }
+            .accuracy-plot-card h4 {
+                color: #3f51b5;
+                margin-bottom: 0.5em;
+                font-size: 1.1em;
+                text-align: center;
+            }
+            .accuracy-plot-card img {
+                width: 100%;
+                height: auto;
+                display: block;
+                border-radius: 2px;
+            }
+
+            /* Grid view container */
+            .grid-view-container {
+                background: #fff;
+                border: 1px solid #dde4f2;
+                border-radius: 4px;
+                padding: 1em;
+                margin-top: 2em;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+            }
+
+            /* Individual prediction view */
+            .individual-prediction {
+                text-align: center;
+                padding: 2em;
+            }
+            .individual-prediction img {
+                width: 80%;
+                max-width: 800px;
+                height: auto;
+                border: 2px solid #dde4f2;
+                border-radius: 6px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+                margin: 0 auto;
+                display: block;
+            }
+            .prediction-info {
+                margin-top: 1.5em;
+                padding: 1em;
+                background: #f9fbff;
+                border-radius: 4px;
+                max-width: 600px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            /* Navigation buttons */
+            .prediction-nav-buttons {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                max-width: 800px;
+                margin: 1em auto;
+            }
+            .nav-button {
+                padding: 0.5em 1.5em;
+                background: #3f51b5;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-family: "Latin Modern Roman", serif;
+                transition: background 0.2s;
+            }
+            .nav-button:hover {
+                background: #5c6bc0;
+            }
+            .nav-button:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+
+            /* Info labels */
+            .info-label {
+                font-style: italic;
+                color: #5a5f6d;
+                font-size: 0.9em;
+                width: 120px;
+                display: inline-block;
+            }
+            .info-value {
+                font-family: "Latin Modern Mono", monospace;
+                color: #2a2a40;
+            }
+
+            /* Tab navigation for switching views */
+            .tab-navigation {
+                display: flex;
+                gap: 1em;
+                margin-bottom: 1em;
+                border-bottom: 2px solid #dde4f2;
+                flex-wrap: wrap; /* Allow wrapping for many models */
+            }
+            .tab-button {
+                padding: 0.5em 1.5em;
+                background: none;
+                border: none;
+                color: #5a5f6d;
+                cursor: pointer;
+                font-family: "Latin Modern Roman", serif;
+                font-size: 1em;
+                transition: color 0.2s, border-color 0.2s;
+                border-bottom: 3px solid transparent;
+                margin-bottom: -2px;
+            }
+            .tab-button:hover {
+                color: #3f51b5;
+            }
+            .tab-button.active {
+                color: #3f51b5;
+                border-bottom-color: #3f51b5;
+                font-weight: bold;
+            }
+            .tab-content {
+                display: none;
+            }
+            .tab-content.active {
+                display: block;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>DeepONet Benchmark Results</h1>
+            <p class="subtitle" id="timestamp">Loading DeepONet results…</p>
+
+            <div id="loading" class="loading">
+                📊 Loading DeepONet benchmark results…
+            </div>
+            <div id="error" class="error" style="display: none"></div>
+
+            <div id="content" style="display: none">
+                <!-- Benchmark Configuration -->
+                <div class="section">
+                    <h2>DeepONet Benchmark Configuration</h2>
+                    <div class="grid">
+                        <div class="card">
+                            <h3>Environment</h3>
+                            <div class="info-item">
+                                <span class="info-label">Device:</span>
+                                <span class="info-value" id="device"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Epochs:</span>
+                                <span class="info-value" id="epochs"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Timestamp:</span>
+                                <span
+                                    class="info-value"
+                                    id="run-timestamp"
+                                ></span>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>Dataset: <span id="dataset-name"></span></h3>
+                            <div class="info-item">
+                                <span class="info-label">Description:</span>
+                                <span
+                                    class="info-value"
+                                    id="dataset-desc"
+                                ></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Equation:</span>
+                                <span class="info-value" id="dataset-eq"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Grid Res.:</span>
+                                <span class="info-value" id="grid-res"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Train Samples:</span>
+                                <span class="info-value" id="n-train"></span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Test Samples:</span>
+                                <span class="info-value" id="n-test"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Accuracy Calculation Note -->
+                <div
+                    id="accuracy-note"
+                    class="accuracy-note"
+                    style="display: none"
+                >
+                    <h4>DeepONet Accuracy Calculation Method</h4>
+                    <p id="accuracy-method"></p>
+                </div>
+
+                <!-- Model Architectures -->
+                <div class="section">
+                    <h2>DeepONet Model Architectures</h2>
+                    <div id="model-cards" class="grid"></div>
+                </div>
+
+                <!-- Performance Comparison -->
+                <div class="section">
+                    <h2>DeepONet Performance Comparison</h2>
+                    <table id="metrics-table">
+                        <thead>
+                            <tr>
+                                <th>Model</th>
+                                <th>MSE ↓</th>
+                                <th>MAE ↓</th>
+                                <th>Relative L2 ↓</th>
+                                <th>Accuracy ↑</th>
+                                <th>Training (s)</th>
+                                <th>Time/Epoch</th>
+                                <th>Parameters</th>
+                            </tr>
+                        </thead>
+                        <tbody id="metrics-body"></tbody>
+                    </table>
+                </div>
+
+                <!-- Training & Validation Accuracy Curves -->
+                <div class="section">
+                    <h2>DeepONet Training &amp; Validation Accuracy Curves</h2>
+
+                    <!-- Tab Navigation -->
+                    <div class="tab-navigation">
+                        <button
+                            class="tab-button active"
+                            onclick="switchTab('overview')"
+                        >
+                            Overview
+                        </button>
+                        <button
+                            class="tab-button"
+                            onclick="switchTab('individual')"
+                        >
+                            Individual Models
+                        </button>
+                        <button class="tab-button" onclick="switchTab('grid')">
+                            Grid View
+                        </button>
+                    </div>
+
+                    <!-- Overview Tab -->
+                    <div id="overview-tab" class="tab-content active">
+                        <div class="chart-container">
+                            <img
+                                id="trainingCurvesChart"
+                                src="../deeponet_charts/training_curves.png"
+                                alt="DeepONet Training and Validation Accuracy Curves"
+                                style="
+                                    width: 100%;
+                                    height: auto;
+                                    max-height: 500px;
+                                    object-fit: contain;
+                                "
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                            />
+                            <div
+                                style="
+                                    display: none;
+                                    text-align: center;
+                                    padding: 2em;
+                                    color: #888;
+                                    background: #f9f9f9;
+                                    border-radius: 4px;
+                                "
+                            >
+                                📊 DeepONet training curves chart not
+                                available<br />
+                                <small
+                                    >Run the DeepONet matplotlib visualizer to
+                                    generate charts</small
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Individual Models Tab -->
+                    <div id="individual-tab" class="tab-content">
+                        <div
+                            id="individual-accuracy-plots"
+                            class="accuracy-plots-grid"
+                        >
+                            <!-- Individual plots will be dynamically added here -->
+                        </div>
+                    </div>
+
+                    <!-- Grid View Tab -->
+                    <div id="grid-tab" class="tab-content">
+                        <div class="grid-view-container">
+                            <img
+                                src="../deeponet_charts/individual_accuracy_plots/accuracy_grid_view.png"
+                                alt="DeepONet Accuracy Comparison Grid"
+                                style="
+                                    width: 100%;
+                                    height: auto;
+                                    object-fit: contain;
+                                "
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                            />
+                            <div
+                                style="
+                                    display: none;
+                                    text-align: center;
+                                    padding: 2em;
+                                    color: #888;
+                                    background: #f9f9f9;
+                                    border-radius: 4px;
+                                "
+                            >
+                                📊 DeepONet grid view not available<br />
+                                <small
+                                    >Run the enhanced DeepONet matplotlib
+                                    visualizer to generate individual
+                                    plots</small
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Analysis Charts -->
+                <div class="section">
+                    <h2>DeepONet Performance Analysis</h2>
+                    <div
+                        class="grid"
+                        style="grid-template-columns: 1fr 1fr; gap: 2em"
+                    >
+                        <!-- Training Time vs Accuracy -->
+                        <div class="card">
+                            <h3>Training Time vs Accuracy</h3>
+                            <div class="chart-container" style="padding: 1em">
+                                <img
+                                    src="../deeponet_charts/deeponet_training_time_vs_accuracy.png"
+                                    alt="DeepONet Training Time vs Accuracy"
+                                    style="
+                                        width: 100%;
+                                        height: auto;
+                                        max-height: 350px;
+                                        object-fit: contain;
+                                    "
+                                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                                />
+                                <div
+                                    style="
+                                        display: none;
+                                        text-align: center;
+                                        padding: 1.5em;
+                                        color: #888;
+                                        background: #f9f9f9;
+                                        border-radius: 4px;
+                                    "
+                                >
+                                    📊 Chart not available
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Relative L2 Error -->
+                        <div class="card">
+                            <h3>Relative L2 Error Comparison</h3>
+                            <div class="chart-container" style="padding: 1em">
+                                <img
+                                    src="../deeponet_charts/deeponet_relative_l2_error.png"
+                                    alt="DeepONet Relative L2 Error Comparison"
+                                    style="
+                                        width: 100%;
+                                        height: auto;
+                                        max-height: 350px;
+                                        object-fit: contain;
+                                    "
+                                    onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                                />
+                                <div
+                                    style="
+                                        display: none;
+                                        text-align: center;
+                                        padding: 1.5em;
+                                        color: #888;
+                                        background: #f9f9f9;
+                                        border-radius: 4px;
+                                    "
+                                >
+                                    📊 Chart not available
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DeepONet Architecture Analysis -->
+                <div class="section">
+                    <h2>DeepONet Architecture Analysis</h2>
+                    <!-- Architecture Analysis -->
+                    <div class="section">
+                        <h3>Architecture Analysis</h3>
+                        <div class="chart-container" style="padding: 1em">
+                            <img
+                                src="../deeponet_charts/architecture_space.png"
+                                alt="DeepONet Architecture Analysis"
+                                style="width: 106%; height: auto; max-height: 600px; object-fit: contain;"
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                            />
+                            <div
+                                style="
+                                    display: none;
+                                    text-align: center;
+                                    padding: 1.5em;
+                                    color: #888;
+                                    background: #f9f9f9;
+                                    border-radius: 4px;
+                                "
+                            >
+                                📊 Architecture analysis not available<br />
+                                <small
+                                    >Shows sensors vs accuracy and hidden size
+                                    analysis</small
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sensor Strategy Analysis -->
+                    <div class="section">
+                        <h3>Sensor Strategy Analysis</h3>
+                        <div class="chart-container" style="padding: 1em">
+                            <img
+                                src="../deeponet_charts/sensor_strategy_analysis.png"
+                                alt="DeepONet Sensor Strategy Analysis"
+                                style="
+                                    width: 102%;
+                                "
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                            />
+                            <div
+                                style="
+                                    display: none;
+                                    text-align: center;
+                                    padding: 1.5em;
+                                    color: #888;
+                                    background: #f9f9f9;
+                                    border-radius: 4px;
+                                "
+                            >
+                                📊 Sensor strategy analysis not available<br />
+                                <small
+                                    >Compares adaptive, random, uniform, and
+                                    Chebyshev sensor strategies</small
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Model Efficiency Analysis -->
+                <div class="section">
+                    <h2>DeepONet Model Efficiency Analysis</h2>
+                    <div class="chart-container">
+                        <img
+                            src="../deeponet_charts/deeponet_model_efficiency.png"
+                            alt="DeepONet Model Efficiency - Accuracy per 1000 Parameters"
+                            style="
+                                width: 100%;
+                                height: auto;
+                                max-height: 500px;
+                                object-fit: contain;
+                            "
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                        />
+                        <div
+                            style="
+                                display: none;
+                                text-align: center;
+                                padding: 2em;
+                                color: #888;
+                                background: #f9f9f9;
+                                border-radius: 4px;
+                            "
+                        >
+                            📊 DeepONet model efficiency chart not available<br />
+                            <small
+                                >This chart shows accuracy per 1000 parameters -
+                                higher values indicate more efficient
+                                models</small
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Full Model Comparison -->
+                <div class="section">
+                    <h2>DeepONet Full Model Comparison</h2>
+                    <div class="chart-container">
+                        <img
+                            src="../deeponet_charts/full_model_comparison.png"
+                            alt="DeepONet Full Model Comparison"
+                            style="
+                                width: 100%;
+                                height: auto;
+                                max-height: 600px;
+                                object-fit: contain;
+                            "
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                        />
+                        <div
+                            style="
+                                display: none;
+                                text-align: center;
+                                padding: 2em;
+                                color: #888;
+                                background: #f9f9f9;
+                                border-radius: 4px;
+                            "
+                        >
+                            📊 DeepONet full model comparison chart not
+                            available<br />
+                            <small
+                                >Shows comprehensive comparison of all DeepONet
+                                models across multiple metrics</small
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sample Predictions -->
+                <div class="section">
+                    <h2>DeepONet Sample Predictions</h2>
+
+                    <!-- Tab Navigation for Predictions -->
+                    <div class="tab-navigation" id="predictions-nav">
+                        <!-- Model tabs will be added dynamically -->
+                    </div>
+
+                    <!-- Individual Model Views will be added dynamically -->
+                    <div id="individual-predictions-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function safeGet(obj, path, def = null) {
+                const value = path
+                    .split(".")
+                    .reduce((o, k) => (o && o[k] != null ? o[k] : null), obj);
+                return value !== null ? value : def;
+            }
+
+            async function loadResults() {
+                try {
+                    const res = await fetch("./benchmark_results.json");
+                    if (!res.ok)
+                        throw new Error("Failed to load DeepONet data");
+                    const data = await res.json();
+                    displayResults(data);
+                } catch (e) {
+                    document.getElementById("loading").style.display = "none";
+                    const err = document.getElementById("error");
+                    err.style.display = "block";
+                    err.textContent = `Error Loading DeepONet Results: ${e.message}`;
+                }
+            }
+
+            function displayResults(d) {
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("content").style.display = "block";
+
+                const ts = new Date(d.timestamp);
+                document.getElementById(
+                    "timestamp"
+                ).textContent = `DeepONet results from ${ts.toLocaleString()}`;
+                document.getElementById("device").textContent = d.device || "–";
+                document.getElementById("epochs").textContent = d.epochs || "–";
+                document.getElementById("run-timestamp").textContent =
+                    ts.toLocaleString();
+
+                const ds = d.dataset_info || {};
+                document.getElementById("dataset-name").textContent =
+                    ds.name || "–";
+                document.getElementById("dataset-desc").textContent =
+                    ds.description || "–";
+                document.getElementById("dataset-eq").textContent =
+                    ds.equation || "–";
+                document.getElementById("grid-res").textContent =
+                    ds.grid_resolution || "–";
+                document.getElementById("n-train").textContent =
+                    ds.n_train_samples || "–";
+                document.getElementById("n-test").textContent =
+                    ds.n_test_samples || "–";
+
+                if (d.accuracy_calculation_note) {
+                    document.getElementById("accuracy-note").style.display =
+                        "block";
+                    document.getElementById("accuracy-method").textContent =
+                        d.accuracy_calculation_note;
+                }
+
+                const mc = document.getElementById("model-cards");
+                mc.innerHTML = "";
+                d.models.forEach((m) => {
+                    const info = m.model_info || {};
+                    const arch = info.architecture || {};
+                    let details = "";
+                    Object.entries(arch).forEach(([k, v]) => {
+                        if (k !== "type" && v != null) {
+                            details += `<div class="info-item"><span class="info-label">${k.replace(
+                                /_/g,
+                                " "
+                            )}:</span><span class="info-value">${v}</span></div>`;
+                        }
+                    });
+                    const card = document.createElement("div");
+                    card.className = "card";
+                    card.innerHTML = `
+                    <h3>${info.name || m.name}</h3>
+                    <p style="color:#888;font-style:italic">${
+                        arch.type || "Branch-Trunk Neural Network"
+                    }</p>
+                    <div class="info-item"><span class="info-label">Parameters:</span><span class="info-value">${(
+                        info.parameters || 0
+                    ).toLocaleString()}</span></div>
+                    <div class="info-item"><span class="info-label">Optimizer:</span><span class="info-value">${
+                        info.optimizer || "–"
+                    }</span></div>
+                    ${details}
+                `;
+                    mc.appendChild(card);
+                });
+
+                fillMetrics(d.models);
+
+                // Generate individual accuracy plots
+                generateIndividualAccuracyPlots(d.models);
+
+                // Generate prediction tabs
+                generatePredictionTabs(d.models);
+            }
+
+            // Global variable to store models for tab functionality
+            let globalModels = [];
+
+            function generatePredictionTabs(models) {
+                globalModels = models; // Store for later use
+
+                // Remove duplicates based on model name
+                const uniqueModels = [];
+                const seenNames = new Set();
+
+                models.forEach((model) => {
+                    const cleanName = model.name.replace("_64x64", "");
+                    if (!seenNames.has(cleanName)) {
+                        seenNames.add(cleanName);
+                        uniqueModels.push(model);
+                    }
+                });
+
+                // Update global models to use unique list
+                globalModels = uniqueModels;
+
+                // Add individual model tabs to navigation
+                const nav = document.getElementById("predictions-nav");
+                nav.innerHTML = ""; // Clear any existing tabs
+
+                uniqueModels.forEach((model, index) => {
+                    const btn = document.createElement("button");
+                    btn.className = "tab-button";
+                    if (index === 0) btn.classList.add("active"); // Make first tab active
+                    btn.textContent = model.name.replace("_64x64", "");
+                    btn.setAttribute(
+                        "onclick",
+                        `switchPredictionTab(${index})`
+                    );
+                    nav.appendChild(btn);
+                });
+
+                // Create individual model views
+                const individualContainer = document.getElementById(
+                    "individual-predictions-container"
+                );
+                individualContainer.innerHTML = "";
+
+                uniqueModels.forEach((model, index) => {
+                    const div = document.createElement("div");
+                    div.id = `prediction-tab-${index}`;
+                    div.className = "tab-content";
+                    if (index === 0) div.classList.add("active"); // Make first tab content active
+
+                    div.innerHTML = `
+                    <div class="individual-prediction">
+                    
+                        <img src="${model.plot_path}" alt="${model.name}" 
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22><rect fill=%22%23333%22 width=%22400%22 height=%22300%22/><text x=%2250%%22 y=%2250%%22 fill=%22%23888%22 text-anchor=%22middle%22>DeepONet prediction image not found</text></svg>'">
+                        <div class="prediction-info">
+                            <h3>${model.name.replace("_64x64", "")}</h3>
+                            <div class="info-item">
+                                <span class="info-label">Parameters:</span>
+                                <span class="info-value">${(
+                                    safeGet(
+                                        model,
+                                        "model_info.parameters",
+                                        0
+                                    ) || 0
+                                ).toLocaleString()}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Final Accuracy:</span>
+                                <span class="info-value">${
+                                    typeof safeGet(
+                                        model,
+                                        "metrics.accuracy"
+                                    ) === "number"
+                                        ? safeGet(
+                                              model,
+                                              "metrics.accuracy"
+                                          ).toFixed(2) + "%"
+                                        : "–"
+                                }</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Relative L2 Error:</span>
+                                <span class="info-value">${
+                                    typeof safeGet(
+                                        model,
+                                        "metrics.relative_l2"
+                                    ) === "number"
+                                        ? safeGet(
+                                              model,
+                                              "metrics.relative_l2"
+                                          ).toFixed(4)
+                                        : "–"
+                                }</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Sensors:</span>
+                                <span class="info-value">${safeGet(
+                                    model,
+                                    "model_info.architecture.n_sensors",
+                                    "–"
+                                )}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Sensor Strategy:</span>
+                                <span class="info-value">${safeGet(
+                                    model,
+                                    "model_info.architecture.sensor_strategy",
+                                    "–"
+                                )}</span>
+                            </div>
+                        </div>
+                    
+                    </div>
+                `;
+                    individualContainer.appendChild(div);
+                });
+            }
+
+            function switchPredictionTab(tabId) {
+                // Update button states
+                const buttons = document.querySelectorAll(
+                    "#predictions-nav .tab-button"
+                );
+                buttons.forEach((btn, index) => {
+                    if (index === tabId) {
+                        btn.classList.add("active");
+                    } else {
+                        btn.classList.remove("active");
+                    }
+                });
+
+                // Update content visibility
+                document
+                    .querySelectorAll('[id^="prediction-tab-"]')
+                    .forEach((tab, index) => {
+                        if (index === tabId) {
+                            tab.classList.add("active");
+                        } else {
+                            tab.classList.remove("active");
+                        }
+                    });
+            }
+
+            function fillMetrics(models) {
+                const tb = document.getElementById("metrics-body");
+                tb.innerHTML = "";
+                const best = {};
+                ["mse", "mae", "relative_l2", "accuracy"].forEach((metric) => {
+                    const vals = models.map((m) => {
+                        const mm = m.metrics || {};
+                        if (metric === "relative_l2")
+                            return mm.relative_l2 != null
+                                ? mm.relative_l2
+                                : mm.rel_l2 || Infinity;
+                        if (metric === "accuracy")
+                            return mm.accuracy != null
+                                ? mm.accuracy
+                                : -Infinity;
+                        return mm[metric] != null ? mm[metric] : Infinity;
+                    });
+                    best[metric] =
+                        metric === "accuracy"
+                            ? Math.max(...vals)
+                            : Math.min(...vals);
+                });
+                models.forEach((m) => {
+                    const mm = m.metrics || {};
+                    const row = document.createElement("tr");
+                    const fmt = (v, p) =>
+                        typeof v === "number" ? v.toFixed(p) : v;
+                    row.innerHTML = `
+                    <td>${m.name}</td>
+                    <td style="color:${
+                        mm.mse === best.mse ? "#3f51b5" : "inherit"
+                    }">${fmt(mm.mse, 3)}</td>
+                    <td style="color:${
+                        mm.mae === best.mae ? "#3f51b5" : "inherit"
+                    }">${fmt(mm.mae, 3)}</td>
+                    <td style="color:${
+                        (mm.relative_l2 || mm.rel_l2) === best.relative_l2
+                            ? "#3f51b5"
+                            : "inherit"
+                    }">${fmt(mm.relative_l2 || mm.rel_l2, 4)}</td>
+                    <td style="color:${
+                        mm.accuracy === best.accuracy ? "#3f51b5" : "inherit"
+                    }">${fmt(mm.accuracy, 1)}%</td>
+                    <td>${fmt(mm.wall_sec, 2)}</td>
+                    <td>${fmt(mm.avg_time_per_epoch, 3)}</td>
+                    <td>${(
+                        safeGet(m, "model_info.parameters", 0) || 0
+                    ).toLocaleString()}</td>
+                `;
+                    tb.appendChild(row);
+                });
+            }
+
+            function generateIndividualAccuracyPlots(models) {
+                const container = document.getElementById(
+                    "individual-accuracy-plots"
+                );
+                container.innerHTML = "";
+
+                models.forEach((model) => {
+                    // Convert model name to filename format - MATCH the Python visualizer logic
+                    const cleanName = model.name
+                        .replace("_64x64", "")
+                        .replace("DeepONet", "DON");
+                    const filename = `accuracy_${cleanName
+                        .replace(/\s+/g, "_")
+                        .toLowerCase()}.png`;
+
+                    const plotCard = document.createElement("div");
+                    plotCard.className = "accuracy-plot-card";
+                    plotCard.innerHTML = `
+                    <h4>${model.name.replace("_64x64", "")}</h4>
+                    <img src="../deeponet_charts/individual_accuracy_plots/${filename}" 
+                         alt="${cleanName} DeepONet Accuracy Plot"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div style="display: none; text-align: center; padding: 2em; color: #888; background: #f9f9f9; border-radius: 4px;">
+                        📊 DeepONet individual plot not available<br>
+                        <small>Expected: ${filename}<br>
+                        Run the enhanced DeepONet visualizer with create_individual_accuracy=True</small>
+                    </div>
+                `;
+                    container.appendChild(plotCard);
+                });
+            }
+
+            function switchTab(tabName) {
+                // Update button states
+                document
+                    .querySelectorAll(
+                        ".tab-navigation:not(#predictions-nav) .tab-button"
+                    )
+                    .forEach((btn) => {
+                        btn.classList.remove("active");
+                    });
+                event.target.classList.add("active");
+
+                // Update content visibility
+                document
+                    .querySelectorAll(".section:nth-of-type(5) .tab-content")
+                    .forEach((content) => {
+                        content.classList.remove("active");
+                    });
+                document
+                    .getElementById(`${tabName}-tab`)
+                    .classList.add("active");
+            }
+
+            function navigatePrediction(currentIndex, direction) {
+                const newIndex = currentIndex + direction;
+                switchPredictionTab(newIndex);
+            }
+
+            // Add keyboard navigation for predictions
+            document.addEventListener("keydown", function (e) {
+                // Check if we're in an individual prediction view
+                const activeTab = document.querySelector(
+                    '[id^="prediction-tab-"].active'
+                );
+                if (activeTab) {
+                    const currentIndex = parseInt(
+                        activeTab.id.split("-").pop()
+                    );
+                    const totalModels = document.querySelectorAll(
+                        '[id^="prediction-tab-"]'
+                    ).length;
+
+                    if (e.key === "ArrowLeft" && currentIndex > 0) {
+                        navigatePrediction(currentIndex, -1);
+                    } else if (
+                        e.key === "ArrowRight" &&
+                        currentIndex < totalModels - 1
+                    ) {
+                        navigatePrediction(currentIndex, 1);
+                    }
+                }
+            });
+
+            window.addEventListener("load", loadResults);
+        </script>
+    </body>
+</html>

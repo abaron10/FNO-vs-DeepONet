@@ -4,7 +4,6 @@ from typing import Union, Dict, Any
 from typing import Dict, Any
 
 class BaseOperator(ABC):
-    """Every model wrapper must implement this interface."""
 
     def __init__(self, device: torch.device, grid_size: int = 16):
         self.device = device

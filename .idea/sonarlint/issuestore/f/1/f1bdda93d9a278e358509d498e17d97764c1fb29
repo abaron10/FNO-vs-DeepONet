@@ -1,6 +1,8 @@
 
-ipython:S3457"EAdd replacement fields or use a normal string instead of an f-string.(í…­Ÿûÿÿÿÿ8‚í­¦ÿ2
-jpython:S3457È"EAdd replacement fields or use a normal string instead of an f-string.(’ ¦’øÿÿÿÿ8‚í­¦ÿ2
-epython:S3457Ğ"EAdd replacement fields or use a normal string instead of an f-string.(¥­ë©8ƒí­¦ÿ2
-epython:S3457ˆ"EAdd replacement fields or use a normal string instead of an f-string.(¥äÌŒ8ƒí­¦ÿ2
-jpython:S3457"EAdd replacement fields or use a normal string instead of an f-string.(¤ŒŸ¢øÿÿÿÿ8ƒí­¦ÿ2
+[python:S5754%"<Specify an exception class to catch or reraise the exception(ˆÊÉ·8êÿûˆƒ3
+ipython:S3457("EAdd replacement fields or use a normal string instead of an f-string.(í…­Ÿûÿÿÿÿ8øÿûˆƒ3
+jpython:S3457¸"EAdd replacement fields or use a normal string instead of an f-string.(’ ¦’øÿÿÿÿ8—˜¬™‚3
+epython:S3457Á"EAdd replacement fields or use a normal string instead of an f-string.(¥­ë©8—˜¬™‚3
+epython:S3457Õ"EAdd replacement fields or use a normal string instead of an f-string.(‹ş÷8—˜¬™‚3
+epython:S3457×"EAdd replacement fields or use a normal string instead of an f-string.(¸Šê¯8—˜¬™‚3
+epython:S3457ñ"EAdd replacement fields or use a normal string instead of an f-string.(¥äÌŒ8—˜¬™‚3

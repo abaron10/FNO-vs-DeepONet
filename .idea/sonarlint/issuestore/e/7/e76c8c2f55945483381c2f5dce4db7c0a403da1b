@@ -1,2 +1,4 @@
 
-kpython:S107T"MMethod "__init__" has 15 parameters, which is greater than the 13 authorized.(—­¯¶8¾ì­¦ÿ2
+kpython:S107V"MMethod "__init__" has 15 parameters, which is greater than the 13 authorized.(—­¯¶8´—¬™‚3
+ypython:S3776š"TRefactor this function to reduce its Cognitive Complexity from 27 to the 15 allowed.(çÙ‘Äúÿÿÿÿ8Â—¬™‚3
+Upython:S1481€"0Remove the unused local variable "total_params".(ËˆÀıÿÿÿÿ8Ã—¬™‚3

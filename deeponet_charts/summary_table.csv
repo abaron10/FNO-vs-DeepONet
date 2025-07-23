@@ -1,0 +1,2 @@
+Model,Accuracy (%),Relative L2,Parameters,Sensors,Hidden Size,Layers,Sensor Strategy,Activation,Training Time (min),MAE,MSE
+Paper_Optimized_DON,85.17,0.1483,"632,101",2700,150,5,random,gelu,478.8,0.053808,0.005984
