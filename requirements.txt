@@ -78,8 +78,7 @@ nbconvert==7.16.6
 nbformat==5.10.4
 nest-asyncio==1.6.0
 networkx==3.4.2
-# Editable install with no version control (neuraloperator==1.0.2)
--e /Users/andres.baron/Documents/Computer-Science/Tesis/Laboratory/neuraloperator
+neuraloperator==1.0.2
 notebook==7.4.2
 notebook_shim==0.2.4
 numcodecs==0.13.1
