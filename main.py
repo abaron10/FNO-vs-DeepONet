@@ -48,29 +48,32 @@ if __name__ == "__main__":
     
     # Initialize models - Enhanced DeepONet configurations
     models = [
-        DeepONetOperator(
+        DeepONetEnsembleOperator(
     device,
-    "Paper_Optimized_DeepONet",
+    "Ultimate_Ensemble_DeepONet",
     grid_size=GRID_SIZE,
+    n_models=5,                        # 5 models voting = variance reduction
     
-    # SENSORS: Paper shows optimal at 60-70% coverage
-    n_sensors=2700,             # 66% of grid (2700/4096)
-    sensor_strategy='random',   # Paper used random successfully
+    # OPTIMAL SENSORS: Your sweet spot
+    n_sensors=2550,                    # Center of optimal range (2500-2600)
+    sensor_strategy='random',          # Each model gets different sensors
     normalize_sensors=True,
     
-    # ARCHITECTURE: Based on paper's best results
-    hidden_size=150,            # Keep original - paper used similar
-    num_layers=5,               # Keep original - paper used 2-4
-    activation='gelu',          # Keep GELU
-    dropout=0.0,                # REMOVE dropout - paper didn't use it
+    # ARCHITECTURE: Proven configuration with slight diversity
+    hidden_size=145,                   # Slightly smaller than 150 for diversity
+    num_layers=5,                      # Keep what works
+    activation='gelu',
+    dropout=0.0,                       # No dropout
     
-    # LEARNING: Paper insights on convergence
-    lr=5e-4,                    # Keep your working LR
-    step_size=150,              # SLOWER decay (was 80)
-    gamma=0.85,                 # GENTLER decay (was 0.7)
-    weight_decay=1e-5,          # Keep light regularization
-    epochs=2000,                # MUCH longer (was 800)
-) 
+    # LEARNING: Fresh start with optimal schedule
+    lr=6e-4,                          # Fresh learning rate
+    step_size=100,                    # Balanced schedule
+    gamma=0.8,                        # Moderate decay
+    weight_decay=2e-5,                # Moderate regularization
+    
+    # TRAINING: Focused burst
+    epochs=1200,                      # Enough to converge
+)
         
     #     # DeepONet Model 1: Optimized v2 with adaptive sensors
     #     DeepONetOperator(
