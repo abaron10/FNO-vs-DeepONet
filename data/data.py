@@ -42,7 +42,7 @@ class ResolutionAdaptiveDataLoader:
 
 @dataclass
 class DataModule:
-    grid: int = 16
+    grid: int = 64
     n_train: int = 100
     batch: int = 4
     n_test: int = 50
