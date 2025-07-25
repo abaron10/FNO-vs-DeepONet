@@ -50,29 +50,26 @@ if __name__ == "__main__":
     models = [
         DeepONetEnsembleOperator(
     device,
-    "Ultimate_Ensemble_DeepONet",
+    "Ensemble_DeepONet_90_Target",
     grid_size=GRID_SIZE,
-    n_models=5,                        # 5 models voting = variance reduction
+    n_models=3,                        # 3 modelos votando
     
-    # OPTIMAL SENSORS: Your sweet spot
-    n_sensors=2550,                    # Center of optimal range (2500-2600)
-    sensor_strategy='random',          # Each model gets different sensors
+    # Misma configuración base
+    n_sensors=2600,
+    sensor_strategy='adaptive',
     normalize_sensors=True,
     
-    # ARCHITECTURE: Proven configuration with slight diversity
-    hidden_size=145,                   # Slightly smaller than 150 for diversity
-    num_layers=5,                      # Keep what works
+    hidden_size=200,
+    num_layers=6,
     activation='gelu',
-    dropout=0.0,                       # No dropout
+    dropout=0.0,
     
-    # LEARNING: Fresh start with optimal schedule
-    lr=6e-4,                          # Fresh learning rate
-    step_size=100,                    # Balanced schedule
-    gamma=0.8,                        # Moderate decay
-    weight_decay=2e-5,                # Moderate regularization
+    lr=1.5e-3,
+    step_size=200,
+    gamma=0.9,
+    weight_decay=1e-6,
     
-    # TRAINING: Focused burst
-    epochs=1200,                      # Enough to converge
+    epochs=1500,                      # Menos épocas por ensemble
 )
         
     #     # DeepONet Model 1: Optimized v2 with adaptive sensors
