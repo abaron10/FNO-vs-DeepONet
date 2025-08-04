@@ -44,85 +44,85 @@ if __name__ == "__main__":
     print(f"  Total samples: {TRAIN_SIZE + TEST_SIZE}")
     print(f"  Input channels detected: {detected_channels}")
     print("\n⚠️  Note: Using test set for validation (not ideal)")
-    print("🔬 Testing enhanced DeepONet with internal improvements")
+    print("🔬 Testing conservative DeepONet approaches to avoid overfitting")
     
-    # Initialize models - Optimized based on literature findings
+    # Initialize models - Conservative approach to avoid overfitting
     models = [
-        # Model 1: Ultra-optimized DeepONet targeting >85% accuracy
+        # Model 1: Conservative high-accuracy model
         DeepONetOperator(
             device,
-            "UltraOptimized_DeepONet_v1",
+            "Conservative_HighAcc_DeepONet",
             grid_size=GRID_SIZE,
-            n_sensors=3600,             # ~88% coverage (optimal based on papers)
-            hidden_size=384,            # Larger hidden size for complex patterns
-            num_layers=10,              # Deep network (will be 10 branch, 5 trunk internally)
-            activation='gelu',          # GELU consistently performs better
-            lr=2e-4,                    # Lower LR for stability with deep network
-            step_size=40,               # More frequent updates with cosine annealing
-            gamma=0.85,                 # Not used with cosine annealing but kept for interface
-            weight_decay=1e-5,          # Light regularization
+            n_sensors=3000,             # Good coverage without overdoing it
+            hidden_size=256,            # Proven to work well
+            num_layers=6,               # Moderate depth
+            activation='gelu',          # GELU works well
+            lr=3e-4,                    # Conservative learning rate
+            step_size=50,               # Regular updates
+            gamma=0.8,                  # Moderate decay
+            weight_decay=5e-5,          # Moderate regularization
             epochs=800,                 # Extended training
-            sensor_strategy='chebyshev', # Better for smooth functions
+            sensor_strategy='adaptive', # Best balanced strategy
             normalize_sensors=True,
-            dropout=0.1                 # Light dropout for regularization
+            dropout=0.15                # Good dropout to prevent overfitting
         ),
         
-        # Model 2: Ensemble for maximum accuracy
+        # Model 2: Ensemble for robustness
         DeepONetEnsembleOperator(
             device,
-            "Ensemble_UltraDeepONet",
+            "Robust_Ensemble_DeepONet",
             grid_size=GRID_SIZE,
             n_models=3,                 # 3 models in ensemble
-            n_sensors=3200,             # Slightly fewer sensors per model
-            hidden_size=320,            # Good capacity
-            num_layers=8,               # Deep but not too deep
+            n_sensors=2500,             # Moderate sensors per model
+            hidden_size=200,            # Conservative capacity
+            num_layers=5,               # Simpler architecture
             activation='gelu',
-            lr=3e-4,                    # Slightly higher LR for ensemble
-            step_size=50,
-            gamma=0.9,
-            weight_decay=2e-5,
-            epochs=600,
-            sensor_strategy='adaptive',  # Best adaptive strategy
-            normalize_sensors=True,
-            dropout=0.05                # Lower dropout for ensemble
-        ),
-        
-        # Model 3: Efficient high-accuracy model
-        DeepONetOperator(
-            device,
-            "Efficient_HighAccuracy_DeepONet",
-            grid_size=GRID_SIZE,
-            n_sensors=2800,             # Good coverage with efficiency
-            hidden_size=256,            # Balanced size
-            num_layers=8,               # Good depth
-            activation='gelu',
-            lr=4e-4,                    # Higher LR for faster convergence
-            step_size=30,               # Frequent updates
-            gamma=0.8,
-            weight_decay=5e-5,          # Moderate regularization
-            epochs=500,                 # Reasonable training time
-            sensor_strategy='adaptive',
-            normalize_sensors=True,
-            dropout=0.0                 # No dropout for maximum capacity
-        ),
-        
-        # Model 4: Maximum sensors approach
-        DeepONetOperator(
-            device,
-            "MaxSensors_DeepONet",
-            grid_size=GRID_SIZE,
-            n_sensors=4000,             # Near maximum (98% coverage)
-            hidden_size=256,            # Don't need huge hidden with many sensors
-            num_layers=6,               # Moderate depth
-            activation='gelu',
-            lr=5e-4,                    # Higher LR viable with many sensors
+            lr=4e-4,                    # Standard LR
             step_size=60,
             gamma=0.75,
-            weight_decay=1e-4,          # More regularization with many parameters
-            epochs=400,                 # Less epochs needed with many sensors
-            sensor_strategy='uniform',  # Uniform works well with high coverage
+            weight_decay=1e-4,          # Higher regularization
+            epochs=600,
+            sensor_strategy='adaptive',
             normalize_sensors=True,
-            dropout=0.15                # More dropout to prevent overfitting
+            dropout=0.2                 # Higher dropout for ensemble members
+        ),
+        
+        # Model 3: Chebyshev sensors approach
+        DeepONetOperator(
+            device,
+            "Chebyshev_Optimal_DeepONet",
+            grid_size=GRID_SIZE,
+            n_sensors=2800,             # Good coverage
+            hidden_size=220,            # Balanced size
+            num_layers=6,               # Moderate depth
+            activation='gelu',
+            lr=3.5e-4,                  # Slightly higher LR
+            step_size=45,               # Regular updates
+            gamma=0.85,
+            weight_decay=3e-5,          # Light regularization
+            epochs=700,                 # Good training time
+            sensor_strategy='chebyshev', # Chebyshev nodes
+            normalize_sensors=True,
+            dropout=0.1                 # Moderate dropout
+        ),
+        
+        # Model 4: Your original configuration (that achieved 75%)
+        DeepONetOperator(
+            device,
+            "Original_Enhanced_DeepONet",
+            grid_size=GRID_SIZE,
+            n_sensors=3800,             # Your original sensor count
+            hidden_size=256,            # Your original hidden size
+            num_layers=6,               # Your original layers
+            activation='gelu',
+            lr=3e-4,                    # Your original LR
+            step_size=50,               # Your original step size
+            gamma=0.9,                  # Your original gamma
+            weight_decay=5e-6,          # Your original weight decay
+            epochs=600,                 # Your original epochs
+            sensor_strategy='adaptive',
+            normalize_sensors=True,
+            dropout=0.03                # Your original dropout
         )
     ]
     
@@ -204,4 +204,4 @@ if __name__ == "__main__":
     print(f"├─ Test samples: {TEST_SIZE}")
     print(f"├─ Grid resolution: {GRID_SIZE}×{GRID_SIZE}")
     print(f"├─ Best accuracy achieved: {best_accuracy:.1f}%")
-    print(f"└─ Key improvements: Nonlinear decoder, Fourier features, Asymmetric architecture")
+    print(f"└─ Key improvements: Conservative architecture, better regularization, adaptive sensors")
