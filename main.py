@@ -44,128 +44,93 @@ if __name__ == "__main__":
     print(f"  Total samples: {TRAIN_SIZE + TEST_SIZE}")
     print(f"  Input channels detected: {detected_channels}")
     print("\n⚠️  Note: Using test set for validation (not ideal)")
-    print("🔬 Testing enhanced DeepONet configurations")
+    print("🔬 Testing enhanced DeepONet with internal improvements")
     
-    # Initialize models - Enhanced DeepONet configurations
+    # Initialize models - Optimized based on literature findings
     models = [
-      DeepONetOperator(
-    device,
-    "Optimal_8K_DeepONet",
-    grid_size=GRID_SIZE,
-    n_sensors=3800,             # 93% coverage
-    hidden_size=256,            # Large capacity para 8K samples
-    num_layers=6,               # Deep enough
-    activation='gelu',
-    lr=3e-4,                    # Conservative LR
-    step_size=50,               # Frequent adjustments
-    gamma=0.9,                  # Gentle decay
-    weight_decay=5e-6,          # Minimal regularization
-    epochs=600,                 # Reasonable training time
-    sensor_strategy='adaptive',
-    normalize_sensors=True,
-    dropout=0.03                # Minimal dropout
-)
+        # Model 1: Ultra-optimized DeepONet targeting >85% accuracy
+        DeepONetOperator(
+            device,
+            "UltraOptimized_DeepONet_v1",
+            grid_size=GRID_SIZE,
+            n_sensors=3600,             # ~88% coverage (optimal based on papers)
+            hidden_size=384,            # Larger hidden size for complex patterns
+            num_layers=10,              # Deep network (will be 10 branch, 5 trunk internally)
+            activation='gelu',          # GELU consistently performs better
+            lr=2e-4,                    # Lower LR for stability with deep network
+            step_size=40,               # More frequent updates with cosine annealing
+            gamma=0.85,                 # Not used with cosine annealing but kept for interface
+            weight_decay=1e-5,          # Light regularization
+            epochs=800,                 # Extended training
+            sensor_strategy='chebyshev', # Better for smooth functions
+            normalize_sensors=True,
+            dropout=0.1                 # Light dropout for regularization
+        ),
         
-    #     # DeepONet Model 1: Optimized v2 with adaptive sensors
-    #     DeepONetOperator(
-    #         device,
-    #         "Optimized_DeepONet_v2",
-    #         grid_size=GRID_SIZE,
-    #         n_sensors=3200,             # 78% del grid
-    #         hidden_size=200,            # Capacidad balanceada
-    #         num_layers=6,               # Profundidad adecuada
-    #         activation='gelu',          # Consistente con FNO
-    #         lr=4e-4,                    # LR optimizado
-    #         step_size=70,               # Updates frecuentes
-    #         gamma=0.75,                 # Decay suave
-    #         weight_decay=2e-6,          # Regularización mínima
-    #         epochs=1000,                # Training extendido
-    #         sensor_strategy='adaptive', # Sensores inteligentes
-    #         normalize_sensors=True      # Normalización crítica
-    #     ),
+        # Model 2: Ensemble for maximum accuracy
+        DeepONetEnsembleOperator(
+            device,
+            "Ensemble_UltraDeepONet",
+            grid_size=GRID_SIZE,
+            n_models=3,                 # 3 models in ensemble
+            n_sensors=3200,             # Slightly fewer sensors per model
+            hidden_size=320,            # Good capacity
+            num_layers=8,               # Deep but not too deep
+            activation='gelu',
+            lr=3e-4,                    # Slightly higher LR for ensemble
+            step_size=50,
+            gamma=0.9,
+            weight_decay=2e-5,
+            epochs=600,
+            sensor_strategy='adaptive',  # Best adaptive strategy
+            normalize_sensors=True,
+            dropout=0.05                # Lower dropout for ensemble
+        ),
         
-    #     # DeepONet Model 2: High-density sensors for maximum accuracy
-    #     DeepONetOperator(
-    #         device,
-    #         "High_Density_DeepONet",
-    #         grid_size=GRID_SIZE,
-    #         n_sensors=3500,             # 85% del grid
-    #         hidden_size=256,            # Más capacidad
-    #         num_layers=8,               # Más profundidad
-    #         activation='gelu',
-    #         lr=3e-4,                    # Lower LR para estabilidad
-    #         step_size=60,               # Más frequent adjustments
-    #         gamma=0.8,                  # Less aggressive decay
-    #         weight_decay=5e-6,          # Less regularization
-    #         epochs=1200,                # Extended training
-    #         sensor_strategy='adaptive',
-    #         normalize_sensors=True,
-    #         dropout=0.0                 # No dropout para max capacity
-    #     ),
+        # Model 3: Efficient high-accuracy model
+        DeepONetOperator(
+            device,
+            "Efficient_HighAccuracy_DeepONet",
+            grid_size=GRID_SIZE,
+            n_sensors=2800,             # Good coverage with efficiency
+            hidden_size=256,            # Balanced size
+            num_layers=8,               # Good depth
+            activation='gelu',
+            lr=4e-4,                    # Higher LR for faster convergence
+            step_size=30,               # Frequent updates
+            gamma=0.8,
+            weight_decay=5e-5,          # Moderate regularization
+            epochs=500,                 # Reasonable training time
+            sensor_strategy='adaptive',
+            normalize_sensors=True,
+            dropout=0.0                 # No dropout for maximum capacity
+        ),
         
-    #     # DeepONet Model 3: Ultra DeepONet for 95% target
-    #       DeepONetOperator(
-    #     device,
-    #     "Hybrid_Best_Chebyshev",
-    #     grid_size=GRID_SIZE,
-    #     n_sensors=2700,             # Sweet spot based on results
-    #     hidden_size=220,            # Balanced capacity
-    #     num_layers=8,               # Good depth
-    #     activation='gelu',
-    #     lr=3.2e-4,                  # Carefully tuned
-    #     step_size=55,               # Balanced updates
-    #     gamma=0.82,                 # Balanced decay
-    #     weight_decay=3e-6,          # Light regularization
-    #     epochs=1300,                # Good training time
-    #     sensor_strategy='chebyshev',
-    #     normalize_sensors=True,
-    #     dropout=0.0
-    # ),
-        
-    #     # DeepONet Model 4: Balanced efficiency vs accuracy
-    #     DeepONetOperator(
-    #         device,
-    #         "Balanced_Plus_Chebyshev",
-    #         grid_size=GRID_SIZE,
-    #         n_sensors=2550,             # Solo +2% del mejor
-    #         hidden_size=180,            # +20% conservador
-    #         num_layers=6,               # +20% conservador
-    #         activation='gelu',
-    #         lr=4e-4,                    
-    #         step_size=70,               
-    #         gamma=0.75,                 
-    #         weight_decay=8e-6,          
-    #         epochs=1000,                
-    #         sensor_strategy='chebyshev',
-    #         normalize_sensors=True,
-    #         dropout=0.0
-    #     ),
-        
-    #     DeepONetOperator(
-    #         device,
-    #         "Enhanced_Balanced_DeepONet",
-    #         grid_size=GRID_SIZE,
-    #         n_sensors=2800,             # +12% del mejor modelo
-    #         hidden_size=200,            # +33% capacidad
-    #         num_layers=7,               # +40% profundidad
-    #         activation='gelu',
-    #         lr=3e-4,                    
-    #         step_size=60,               
-    #         gamma=0.8,                  
-    #         weight_decay=5e-6,          
-    #         epochs=1200,                
-    #         sensor_strategy='chebyshev',
-    #         normalize_sensors=True,
-    #         dropout=0.0
-    #     )
+        # Model 4: Maximum sensors approach
+        DeepONetOperator(
+            device,
+            "MaxSensors_DeepONet",
+            grid_size=GRID_SIZE,
+            n_sensors=4000,             # Near maximum (98% coverage)
+            hidden_size=256,            # Don't need huge hidden with many sensors
+            num_layers=6,               # Moderate depth
+            activation='gelu',
+            lr=5e-4,                    # Higher LR viable with many sensors
+            step_size=60,
+            gamma=0.75,
+            weight_decay=1e-4,          # More regularization with many parameters
+            epochs=400,                 # Less epochs needed with many sensors
+            sensor_strategy='uniform',  # Uniform works well with high coverage
+            normalize_sensors=True,
+            dropout=0.15                # More dropout to prevent overfitting
+        )
     ]
     
     runner = BenchmarkRunner(models, dm, 1000)  
     runner.device = device  
     scores = runner.run()
     
-    
-    best_accuracy = -float('inf')  # Can be negative!
+    best_accuracy = -float('inf')
     best_model = None
     
     for s in scores:
@@ -182,7 +147,8 @@ if __name__ == "__main__":
             print(f"│  ├─ Hidden Size: {arch.get('hidden_size', 'N/A')}")
             print(f"│  ├─ Layers: {arch.get('num_layers', 'N/A')}")
             print(f"│  ├─ Activation: {arch.get('activation', 'N/A')}")
-            print(f"│  └─ Sensor Strategy: {arch.get('sensor_strategy', 'N/A')}")
+            print(f"│  ├─ Sensor Strategy: {arch.get('sensor_strategy', 'N/A')}")
+            print(f"│  └─ Features: {arch.get('features', 'N/A')}")
         
         print(f"└─ Metrics:")
         metrics = s['metrics']
@@ -195,14 +161,12 @@ if __name__ == "__main__":
         if 'relative_l2' in metrics:
             rel_l2_error = metrics['relative_l2']
             print(f"   ├─ Relative L2: {rel_l2_error:.4f} ({rel_l2_error*100:.1f}%)")
-            # Verify accuracy calculation
             expected_acc = 100 * (1 - rel_l2_error)
             if abs(expected_acc - metrics.get('accuracy', 0)) > 0.1:
                 print(f"   ├─ Note: Accuracy should be {expected_acc:.1f}% based on L2 error")
         if 'accuracy' in metrics:
             acc = metrics['accuracy']
             print(f"   ├─ Accuracy: {acc:.1f}%")
-            # Sanity check for Li et al. accuracy
             if acc > 100:
                 print(f"   ├─ ⚠️  WARNING: Accuracy > 100% indicates calculation error!")
             elif acc < -100:
@@ -217,17 +181,19 @@ if __name__ == "__main__":
     print(f"\n🏆 BEST MODEL: {best_model} with {best_accuracy:.1f}% accuracy")
     
     if best_accuracy > 90:
-        print("🎉 Excellent! DeepONet achieved >90% accuracy")
+        print("🎉 EXCEPTIONAL! DeepONet achieved >90% accuracy")
     elif best_accuracy > 85:
-        print("✅ Great! DeepONet achieved >85% accuracy") 
+        print("🎊 EXCELLENT! DeepONet achieved >85% accuracy")
     elif best_accuracy > 80:
-        print("👍 Good! DeepONet achieved >80% accuracy")
+        print("✅ SUCCESS! DeepONet achieved >80% accuracy target") 
+    elif best_accuracy > 75:
+        print("👍 Good progress! DeepONet improved to >75% accuracy")
     else:
-        print("⚠️  DeepONet needs further optimization")
+        print("⚠️  DeepONet still needs optimization")
     
     # Save results
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"results_deeponet_{timestamp}.json"
+    filename = f"results_enhanced_deeponet_{timestamp}.json"
     runner.save_results(scores)
     print(f"\n💾 Results saved to: {filename}")
     
@@ -237,4 +203,5 @@ if __name__ == "__main__":
     print(f"├─ Training samples: {TRAIN_SIZE}")
     print(f"├─ Test samples: {TEST_SIZE}")
     print(f"├─ Grid resolution: {GRID_SIZE}×{GRID_SIZE}")
-    print(f"└─ Best accuracy achieved: {best_accuracy:.1f}%")
+    print(f"├─ Best accuracy achieved: {best_accuracy:.1f}%")
+    print(f"└─ Key improvements: Nonlinear decoder, Fourier features, Asymmetric architecture")
