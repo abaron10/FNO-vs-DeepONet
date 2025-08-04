@@ -23,7 +23,7 @@ if __name__ == "__main__":
     GRID_SIZE = 64
     
     # CORRECTED: Use proper data sizes
-    TRAIN_SIZE = 4000
+    TRAIN_SIZE = 8000
     TEST_SIZE = 2000
     
     dm = DataModule(grid=GRID_SIZE, n_train=TRAIN_SIZE, n_test=TEST_SIZE)
@@ -160,7 +160,7 @@ if __name__ == "__main__":
     #     )
     ]
     
-    runner = BenchmarkRunner(models, dm, 1000)  
+    runner = BenchmarkRunner(models, dm, 2000)  
     runner.device = device  
     scores = runner.run()
     
