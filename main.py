@@ -48,29 +48,23 @@ if __name__ == "__main__":
     
     # Initialize models - Enhanced DeepONet configurations
     models = [
-        DeepONetEnsembleOperator(
-    device,
-    "Ensemble_DeepONet_90_Target",
-    grid_size=GRID_SIZE,
-    n_models=3,                        # 3 modelos votando
-    
-    # Misma configuración base
-    n_sensors=2600,
-    sensor_strategy='adaptive',
-    normalize_sensors=True,
-    
-    hidden_size=200,
-    num_layers=6,
-    activation='gelu',
-    dropout=0.0,
-    
-    lr=1.5e-3,
-    step_size=200,
-    gamma=0.9,
-    weight_decay=1e-6,
-    
-    epochs=1500,                      # Menos épocas por ensemble
-)
+          DeepONetOperator(
+            device,
+            "Balanced_DeepONet",
+            grid_size=GRID_SIZE,
+            n_sensors=3600,             # 61% del grid
+            hidden_size=150,            # Balanced capacity
+            num_layers=5,               # Balanced depth
+            activation='gelu',
+            lr=5e-4,                    # Standard LR
+            step_size=80,               # Standard updates
+            gamma=0.7,                  # Standard decay
+            weight_decay=1e-5,          # Light regularization
+            epochs=800,                 # Reasonable training time
+            sensor_strategy='random', # Good interpolation
+            normalize_sensors=True,
+            dropout=0.05                # Very light dropout
+        )
         
     #     # DeepONet Model 1: Optimized v2 with adaptive sensors
     #     DeepONetOperator(
@@ -166,7 +160,7 @@ if __name__ == "__main__":
     #     )
     ]
     
-    runner = BenchmarkRunner(models, dm, 2000)  
+    runner = BenchmarkRunner(models, dm, 1000)  
     runner.device = device  
     scores = runner.run()
     
