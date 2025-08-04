@@ -48,23 +48,23 @@ if __name__ == "__main__":
     
     # Initialize models - Enhanced DeepONet configurations
     models = [
-          DeepONetOperator(
-              device,
-    "Ultra_Precision_DeepONet",
+         DeepONetOperator(
+    device,
+    "Regularized_DeepONet",
     grid_size=GRID_SIZE,
-    n_sensors=4000,             # 97.6% coverage (casi todo el grid)
-    hidden_size=384,            # Very large hidden size
-    num_layers=8,               # Deep network
+    n_sensors=3200,             # ↓ Menos sensores (de 3600)
+    hidden_size=128,            # ↓ Modelo más pequeño (de 150)
+    num_layers=4,               # ↓ Menos capas (de 5)
     activation='gelu',
-    lr=2e-4,                    # Very careful LR
-    step_size=50,               # Frequent updates
-    gamma=0.85,                 # Very gentle decay
-    weight_decay=1e-6,          # Minimal regularization
-    epochs=1500,                # Extended training
-    sensor_strategy='adaptive',
+    lr=1e-3,                    # ↑ Learning rate más alto
+    step_size=50,               # ↓ Updates más frecuentes
+    gamma=0.8,                  # ↑ Decay más suave
+    weight_decay=5e-4,          # ↑ Mucha más regularización (de 1e-5)
+    epochs=400,                 # ↓ Menos epochs (early stopping natural)
+    sensor_strategy='adaptive', # ★ Cambio clave
     normalize_sensors=True,
-    dropout=0.0                 # No dropout for max capacity
-        )
+    dropout=0.15                # ↑ Mucho más dropout (de 0.05)
+)
         
     #     # DeepONet Model 1: Optimized v2 with adaptive sensors
     #     DeepONetOperator(
