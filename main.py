@@ -24,7 +24,7 @@ if __name__ == "__main__":
     
     # CORRECTED: Use proper data sizes
     TRAIN_SIZE = 8000
-    TEST_SIZE = 2000
+    TEST_SIZE = 3000
     
     dm = DataModule(grid=GRID_SIZE, n_train=TRAIN_SIZE, n_test=TEST_SIZE)
     dm.setup()
@@ -48,63 +48,6 @@ if __name__ == "__main__":
     
     # Initialize models - Conservative approach to avoid overfitting
     models = [
-        # Model 1: Conservative high-accuracy model
-        DeepONetOperator(
-            device,
-            "Conservative_HighAcc_DeepONet",
-            grid_size=GRID_SIZE,
-            n_sensors=3000,             # Good coverage without overdoing it
-            hidden_size=256,            # Proven to work well
-            num_layers=6,               # Moderate depth
-            activation='gelu',          # GELU works well
-            lr=3e-4,                    # Conservative learning rate
-            step_size=50,               # Regular updates
-            gamma=0.8,                  # Moderate decay
-            weight_decay=5e-5,          # Moderate regularization
-            epochs=800,                 # Extended training
-            sensor_strategy='adaptive', # Best balanced strategy
-            normalize_sensors=True,
-            dropout=0.15                # Good dropout to prevent overfitting
-        ),
-        
-        # Model 2: Ensemble for robustness
-        DeepONetOperator(
-            device,
-            "Robust_Ensemble_DeepONet",
-            grid_size=GRID_SIZE,
-            n_sensors=2500,             # Moderate sensors per model
-            hidden_size=200,            # Conservative capacity
-            num_layers=5,               # Simpler architecture
-            activation='gelu',
-            lr=4e-4,                    # Standard LR
-            step_size=60,
-            gamma=0.75,
-            weight_decay=1e-4,          # Higher regularization
-            epochs=600,
-            sensor_strategy='random',
-            normalize_sensors=True,
-            dropout=0.2                 # Higher dropout for ensemble members
-        ),
-        
-        # Model 3: Chebyshev sensors approach
-        DeepONetOperator(
-            device,
-            "Chebyshev_Optimal_DeepONet",
-            grid_size=GRID_SIZE,
-            n_sensors=2800,             # Good coverage
-            hidden_size=220,            # Balanced size
-            num_layers=6,               # Moderate depth
-            activation='gelu',
-            lr=3.5e-4,                  # Slightly higher LR
-            step_size=45,               # Regular updates
-            gamma=0.85,
-            weight_decay=3e-5,          # Light regularization
-            epochs=700,                 # Good training time
-            sensor_strategy='chebyshev', # Chebyshev nodes
-            normalize_sensors=True,
-            dropout=0.1                 # Moderate dropout
-        ),
-        
         # Model 4: Your original configuration (that achieved 75%)
         DeepONetOperator(
             device,
@@ -119,7 +62,7 @@ if __name__ == "__main__":
             gamma=0.9,                  # Your original gamma
             weight_decay=5e-6,          # Your original weight decay
             epochs=600,                 # Your original epochs
-            sensor_strategy='adaptive',
+            sensor_strategy='random',
             normalize_sensors=True,
             dropout=0.03                # Your original dropout
         )
