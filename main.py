@@ -55,7 +55,7 @@ if __name__ == "__main__":
             grid_size=GRID_SIZE,
             n_sensors=3800,             # Your original sensor count
             hidden_size=256,            # Your original hidden size
-            num_layers=6,               # Your original layers
+            num_layers=7,               # Your original layers
             activation='gelu',
             lr=3e-4,                    # Your original LR
             step_size=50,               # Your original step size
