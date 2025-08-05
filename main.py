@@ -68,11 +68,10 @@ if __name__ == "__main__":
         ),
         
         # Model 2: Ensemble for robustness
-        DeepONetEnsembleOperator(
+        DeepONetOperator(
             device,
             "Robust_Ensemble_DeepONet",
             grid_size=GRID_SIZE,
-            n_models=3,                 # 3 models in ensemble
             n_sensors=2500,             # Moderate sensors per model
             hidden_size=200,            # Conservative capacity
             num_layers=5,               # Simpler architecture
@@ -82,7 +81,7 @@ if __name__ == "__main__":
             gamma=0.75,
             weight_decay=1e-4,          # Higher regularization
             epochs=600,
-            sensor_strategy='adaptive',
+            sensor_strategy='random',
             normalize_sensors=True,
             dropout=0.2                 # Higher dropout for ensemble members
         ),
