@@ -1,2 +1,5 @@
 Model,Accuracy (%),Relative L2,Parameters,Sensors,Hidden Size,Layers,Sensor Strategy,Activation,Training Time (min),MAE,MSE
-Paper_Optimized_DON,85.17,0.1483,"632,101",2700,150,5,random,gelu,478.8,0.053808,0.005984
+ResNet_Advanced_DON,74.15,0.2585,"2,648,321",3136,320,8,chebyshev,gelu,30.1,0.098397,0.017947
+PhysicsInformed_Adaptive,74.01,0.2599,"1,925,281",3500,280,6,adaptive,gelu,24.4,0.098620,0.018144
+Original_Enhanced_DON,74.62,0.2538,"1,894,913",3800,256,7,uniform,gelu,26.0,0.094000,0.017659
+Original_Enhanced_DON,75.37,0.2463,"1,763,329",3800,256,6,random,gelu,24.2,0.091907,0.016639
