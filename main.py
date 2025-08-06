@@ -48,33 +48,12 @@ if __name__ == "__main__":
     
     # Initialize models - Optimized for your original DeepONet class
     models = [
-        # Model 1: Ultra-Light (Minimal parameters, fast baseline)
-        # Paper shows 100 sensors is critical point, 2 layers works well
         DeepONetOperator(
             device,
-            "DeepONet_UltraLight_100sens",
-            grid_size=GRID_SIZE,
-            n_sensors=100,                   # Paper critical point
-            hidden_size=128,                 # Small but effective
-            num_layers=2,                    # Shallow (paper Fig. 2)
-            activation='relu',               # Simple and fast
-            lr=3e-3,                        # Higher LR for small network
-            step_size=50,
-            gamma=0.85,
-            weight_decay=5e-5,              # More regularization
-            epochs=1200,                    # More epochs for small net
-            sensor_strategy='uniform',      # Guaranteed coverage
-            normalize_sensors=True,
-            dropout=0.25                    # Heavy dropout for regularization
-        ),
-        
-        # Model 2: Wide-Shallow (Paper shows excellent performance)
-        DeepONetOperator(
-            device,
-            "DeepONet_Wide_Shallow_256sens",
+            "DeepONet_Wide_Shallow_256sens_chebyshev",
             grid_size=GRID_SIZE,
             n_sensors=256,                   # More sensors
-            hidden_size=512,                 # Very wide
+            hidden_size=1024,                 # Very wide
             num_layers=2,                    # Very shallow
             activation='gelu',               # Better for wide networks
             lr=5e-4,                        # Lower LR for wide network
@@ -86,121 +65,58 @@ if __name__ == "__main__":
             normalize_sensors=True,
             dropout=0.05                    # Light dropout for shallow
         ),
-        
-        # Model 3: Moderate Depth Optimized
-        DeepONetOperator(
+                DeepONetOperator(
             device,
-            "DeepONet_Moderate_150sens",
+            "DeepONet_Wide_Shallow_256sens_random",
             grid_size=GRID_SIZE,
-            n_sensors=150,                   # Balanced sensors
-            hidden_size=200,                 # Moderate size
-            num_layers=4,                    # Paper suggests 2-4 layers
-            activation='gelu',               # Good general activation
-            lr=1e-3,                        # Standard LR
-            step_size=80,
-            gamma=0.92,
-            weight_decay=2e-5,
-            epochs=1000,
-            sensor_strategy='adaptive',      # Mix uniform and boundary
-            normalize_sensors=True,
-            dropout=0.15                    # Moderate dropout
-        ),
-        
-        # Model 4: Your best config refined (reduced sensors)
-        DeepONetOperator(
-            device,
-            "DeepONet_Refined_2000sens",
-            grid_size=GRID_SIZE,
-            n_sensors=2000,                  # Reduced from 3800
-            hidden_size=300,                 # Slightly smaller than before
-            num_layers=4,                    # Moderate depth
-            activation='gelu',               # Keep what worked
-            lr=2e-3,                        # Higher LR
-            step_size=60,
-            gamma=0.93,
-            weight_decay=1e-5,
-            epochs=800,
-            sensor_strategy='random',        # Random worked for you
-            normalize_sensors=True,
-            dropout=0.1                     # Balanced dropout
-        ),
-        
-        # Model 5: Deep with Heavy Regularization
-        DeepONetOperator(
-            device,
-            "DeepONet_Deep_Regularized",
-            grid_size=GRID_SIZE,
-            n_sensors=200,                   
-            hidden_size=180,                 # Smaller hidden for deep
-            num_layers=6,                    # Deeper network
-            activation='mish',               # Good for deep networks
-            lr=8e-4,
+            n_sensors=256,                   # More sensors
+            hidden_size=1024,                 # Very wide
+            num_layers=2,                    # Very shallow
+            activation='gelu',               # Better for wide networks
+            lr=5e-4,                        # Lower LR for wide network
             step_size=100,
-            gamma=0.88,
-            weight_decay=4e-5,              # More weight decay
-            epochs=900,
-            sensor_strategy='chebyshev',
-            normalize_sensors=True,
-            dropout=0.2                     # Heavy dropout for deep
-        ),
-        
-        # Model 6: Maximum Width Strategy
-        DeepONetOperator(
-            device,
-            "DeepONet_MaxWidth_300sens",
-            grid_size=GRID_SIZE,
-            n_sensors=300,
-            hidden_size=768,                 # Very wide
-            num_layers=3,                    # Shallow-moderate
-            activation='gelu',
-            lr=3e-4,                        # Very low LR for huge network
-            step_size=120,
-            gamma=0.85,
-            weight_decay=5e-5,              # Strong regularization
-            epochs=600,
-            sensor_strategy='adaptive',
-            normalize_sensors=True,
-            dropout=0.08                    # Light dropout for wide
-        ),
-        
-        # Model 7: Ensemble-Ready Small Model
-        DeepONetOperator(
-            device,
-            "DeepONet_Ensemble_Base",
-            grid_size=GRID_SIZE,
-            n_sensors=120,
-            hidden_size=150,
-            num_layers=3,
-            activation='relu',
-            lr=2.5e-3,
-            step_size=70,
             gamma=0.9,
             weight_decay=3e-5,
-            epochs=1000,
-            sensor_strategy='uniform',
+            epochs=800,
+            sensor_strategy='random',    # Better interpolation
             normalize_sensors=True,
-            dropout=0.18
+            dropout=0.05                    # Light dropout for shallow
         ),
-        
-        # Model 8: Paper-Optimal Configuration
-        # Based on paper's best practices
         DeepONetOperator(
             device,
-            "DeepONet_Paper_Optimal",
+            "DeepONet_Wide_Shallow_256sens_adaptive",
             grid_size=GRID_SIZE,
-            n_sensors=100,                   # Paper's critical point
-            hidden_size=256,                 # Moderate-wide
-            num_layers=3,                    # Paper's sweet spot
-            activation='gelu',               # Modern activation
-            lr=1.5e-3,
-            step_size=90,
-            gamma=0.91,
-            weight_decay=2e-5,
-            epochs=1000,
-            sensor_strategy='chebyshev',    # Best for smooth functions
+            n_sensors=256,                   # More sensors
+            hidden_size=1024,                 # Very wide
+            num_layers=2,                    # Very shallow
+            activation='gelu',               # Better for wide networks
+            lr=5e-4,                        # Lower LR for wide network
+            step_size=100,
+            gamma=0.9,
+            weight_decay=3e-5,
+            epochs=800,
+            sensor_strategy='adaptive',    # Better interpolation
             normalize_sensors=True,
-            dropout=0.12
-        )
+            dropout=0.05                    # Light dropout for shallow
+        ),
+            DeepONetOperator(
+            device,
+            "DeepONet_Wide_Shallow_256sens_uniform",
+            grid_size=GRID_SIZE,
+            n_sensors=256,                   # More sensors
+            hidden_size=1024,                 # Very wide
+            num_layers=2,                    # Very shallow
+            activation='gelu',               # Better for wide networks
+            lr=5e-4,                        # Lower LR for wide network
+            step_size=100,
+            gamma=0.9,
+            weight_decay=3e-5,
+            epochs=800,
+            sensor_strategy='uniform',    # Better interpolation
+            normalize_sensors=True,
+            dropout=0.05                    # Light dropout for shallow
+        ),
+        
     ]
     
     # Print model summaries before training
