@@ -140,7 +140,7 @@ class BenchmarkRunner:
             
         return results
 
-    def save_results(self, results, output_path="../visualizer/benchmark_results.json"):
+    def save_results(self, results, output_path="/home/psxab21/NeuralOpsAB/OPERA/visualizer/benchmark_results.json"):
         """Save all results to JSON"""
         clean_results = []
         for r in results:

@@ -48,7 +48,44 @@ if __name__ == "__main__":
     
     # Initialize models - Conservative approach to avoid overfitting
     models = [
-        # Model 4: Your original configuration (that achieved 75%)
+        # Model 1: Aggressive high-accuracy configuration
+        DeepONetOperator(
+            device,
+            "ResNet_Advanced_DeepONet",
+            grid_size=GRID_SIZE,
+            n_sensors=3200,             # Optimal coverage
+            hidden_size=320,            # Larger for residual blocks
+            num_layers=8,               # Deep network with residuals
+            activation='gelu',
+            lr=2e-4,                    # Lower LR for stability
+            step_size=40,               # Frequent restarts
+            gamma=0.8,                  # Not used but kept
+            weight_decay=3e-5,          # Light regularization
+            epochs=1000,                # Extended training
+            sensor_strategy='chebyshev', # Best for smooth functions
+            normalize_sensors=True,
+            dropout=0.1                 # Moderate dropout
+        ),
+        
+        # Model 2: Physics-informed adaptive sensors
+        DeepONetOperator(
+            device,
+            "PhysicsInformed_Adaptive",
+            grid_size=GRID_SIZE,
+            n_sensors=3500,             # More sensors with adaptive
+            hidden_size=280,            # Good capacity
+            num_layers=6,               # Moderate depth
+            activation='gelu',
+            lr=3e-4,                    # Standard LR
+            step_size=50,
+            gamma=0.85,
+            weight_decay=5e-5,
+            epochs=800,
+            sensor_strategy='adaptive',  # Physics-informed placement
+            normalize_sensors=True,
+            dropout=0.15
+        ),
+            # Model 4: Your original configuration (that achieved 75%)
         DeepONetOperator(
             device,
             "Original_Enhanced_DeepONet",
@@ -56,6 +93,24 @@ if __name__ == "__main__":
             n_sensors=3800,             # Your original sensor count
             hidden_size=256,            # Your original hidden size
             num_layers=7,               # Your original layers
+            activation='gelu',
+            lr=3e-4,                    # Your original LR
+            step_size=50,               # Your original step size
+            gamma=0.9,                  # Your original gamma
+            weight_decay=5e-6,          # Your original weight decay
+            epochs=600,                 # Your original epochs
+            sensor_strategy='uniform',
+            normalize_sensors=True,
+            dropout=0.03                # Your original dropout
+        ),
+        # Model 4: Your original configuration (that achieved 75%)
+        DeepONetOperator(
+            device,
+            "Original_Enhanced_DeepONet",
+            grid_size=GRID_SIZE,
+            n_sensors=3800,             # Your original sensor count
+            hidden_size=256,            # Your original hidden size
+            num_layers=6,               # Your original layers
             activation='gelu',
             lr=3e-4,                    # Your original LR
             step_size=50,               # Your original step size
