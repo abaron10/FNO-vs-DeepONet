@@ -205,9 +205,9 @@
       "plot_path": "../figs/DeepONet_Model2_adaptive_64x64.png"
     },
     {
-      "name": "DeepONet_Model1_adaptive_64x64",
+      "name": "DeepONet_Model1_uniform_64x64",
       "model_info": {
-        "name": "DeepONet_Model1_adaptive_64x64",
+        "name": "DeepONet_Model1_uniform_64x64",
         "architecture": {
           "type": "Branch-Trunk Neural Network",
           "grid": "64\u00d764",
