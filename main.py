@@ -203,29 +203,6 @@ if __name__ == "__main__":
         )
     ]
     
-    # Add ensemble model if you want
-    ensemble_model = DeepONetEnsembleOperator(
-        device,
-        "DeepONet_Ensemble_3models",
-        grid_size=GRID_SIZE,
-        n_models=3,                        # 3 models in ensemble
-        n_sensors=150,
-        hidden_size=200,
-        num_layers=3,
-        activation='gelu',
-        lr=1.5e-3,
-        step_size=80,
-        gamma=0.9,
-        weight_decay=2e-5,
-        epochs=800,
-        sensor_strategy='random',
-        normalize_sensors=True,
-        dropout=0.15
-    )
-    
-    # Add ensemble to models list
-    models.append(ensemble_model)
-    
     # Print model summaries before training
     print("\n📋 Model Configurations Summary:")
     print("-" * 80)
