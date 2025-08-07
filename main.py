@@ -46,78 +46,83 @@ if __name__ == "__main__":
     print("\n⚠️  Note: Using test set for validation (not ideal)")
     print("🔬 Testing optimized DeepONet configurations based on paper insights")
     
-    # Initialize models - Optimized for your original DeepONet class
     models = [
-        DeepONetOperator(
-            device,
-            "DeepONet_Wide_Shallow_256sens_chebyshev",
-            grid_size=GRID_SIZE,
-            n_sensors=100,                   # More sensors
-            hidden_size=512,                 # Very wide
-            num_layers=2,                    # Very shallow
-            activation='gelu',               # Better for wide networks
-            lr=5e-4,                        # Lower LR for wide network
-            step_size=100,
-            gamma=0.9,
-            weight_decay=3e-5,
-            epochs=800,
-            sensor_strategy='chebyshev',    # Better interpolation
-            normalize_sensors=True,
-            dropout=0.05                    # Light dropout for shallow
-        ),
-                DeepONetOperator(
-            device,
-            "DeepONet_Wide_Shallow_256sens_random",
-            grid_size=GRID_SIZE,
-            n_sensors=100,                   # More sensors
-            hidden_size=512,                 # Very wide
-            num_layers=2,                    # Very shallow
-            activation='gelu',               # Better for wide networks
-            lr=5e-4,                        # Lower LR for wide network
-            step_size=100,
-            gamma=0.9,
-            weight_decay=3e-5,
-            epochs=800,
-            sensor_strategy='random',    # Better interpolation
-            normalize_sensors=True,
-            dropout=0.05                    # Light dropout for shallow
-        ),
-        DeepONetOperator(
-            device,
-            "DeepONet_Wide_Shallow_256sens_adaptive",
-            grid_size=GRID_SIZE,
-            n_sensors=100,                   # More sensors
-            hidden_size=512,                 # Very wide
-            num_layers=2,                    # Very shallow
-            activation='gelu',               # Better for wide networks
-            lr=5e-4,                        # Lower LR for wide network
-            step_size=100,
-            gamma=0.9,
-            weight_decay=3e-5,
-            epochs=800,
-            sensor_strategy='adaptive',    # Better interpolation
-            normalize_sensors=True,
-            dropout=0.05                    # Light dropout for shallow
-        ),
-            DeepONetOperator(
-            device,
-            "DeepONet_Wide_Shallow_256sens_uniform",
-            grid_size=GRID_SIZE,
-            n_sensors=100,                   # More sensors
-            hidden_size=512,                 # Very wide
-            num_layers=2,                    # Very shallow
-            activation='gelu',               # Better for wide networks
-            lr=5e-4,                        # Lower LR for wide network
-            step_size=100,
-            gamma=0.9,
-            weight_decay=3e-5,
-            epochs=800,
-            sensor_strategy='uniform',    # Better interpolation
-            normalize_sensors=True,
-            dropout=0.05                    # Light dropout for shallow
-        ),
-        
-    ]
+    DeepONetOperator(
+        device,
+        "DeepONet_Wide_Shallow_256sens_chebyshev",
+        grid_size=GRID_SIZE,
+        n_sensors=100,
+        hidden_size=384,                 # Reduced from 512 for better stability
+        num_layers=3,                    # Added one layer for better representation
+        activation='gelu',
+        lr=3e-4,                        # Reduced LR to prevent large jumps
+        step_size=50,                   # More frequent LR decay
+        gamma=0.85,                     # Slightly more aggressive decay
+        weight_decay=1e-4,              # Increased regularization
+        epochs=800,
+        sensor_strategy='chebyshev',
+        normalize_sensors=True,
+        dropout=0.1,                    # Increased dropout for regularization
+        batch_size=64                   # Add explicit batch size if not set
+    ),
+    
+    DeepONetOperator(
+        device,
+        "DeepONet_Wide_Shallow_256sens_random",
+        grid_size=GRID_SIZE,
+        n_sensors=100,
+        hidden_size=384,                 # Reduced width
+        num_layers=3,                    # Added depth
+        activation='gelu',
+        lr=2.5e-4,                      # Even lower LR for random strategy
+        step_size=40,                   # More frequent decay for noisy strategy
+        gamma=0.8,                      # More aggressive for stability
+        weight_decay=1.5e-4,            # Higher regularization for random
+        epochs=800,
+        sensor_strategy='random',
+        normalize_sensors=True,
+        dropout=0.15,                   # Higher dropout for noisy strategy
+        batch_size=64
+    ),
+    
+    DeepONetOperator(
+        device,
+        "DeepONet_Wide_Shallow_256sens_adaptive",
+        grid_size=GRID_SIZE,
+        n_sensors=100,
+        hidden_size=384,
+        num_layers=3,
+        activation='gelu',
+        lr=3.5e-4,                      # Slightly higher for adaptive
+        step_size=60,                   # Moderate decay frequency
+        gamma=0.87,                     # Conservative decay
+        weight_decay=8e-5,              # Moderate regularization
+        epochs=800,
+        sensor_strategy='adaptive',
+        normalize_sensors=True,
+        dropout=0.08,                   # Lower dropout as adaptive is smarter
+        batch_size=64
+    ),
+    
+    DeepONetOperator(
+        device,
+        "DeepONet_Wide_Shallow_256sens_uniform",
+        grid_size=GRID_SIZE,
+        n_sensors=100,
+        hidden_size=320,                # Most conservative width
+        num_layers=4,                   # More depth to compensate
+        activation='gelu',
+        lr=2e-4,                       # Lowest LR for most unstable strategy
+        step_size=30,                  # Frequent LR reductions
+        gamma=0.75,                    # Aggressive decay for stability
+        weight_decay=2e-4,             # Highest regularization
+        epochs=800,
+        sensor_strategy='uniform',
+        normalize_sensors=True,
+        dropout=0.2,                   # Highest dropout for stability
+        batch_size=64
+    ),
+]
     
     #k Print model summaries before training
     print("\n📋 Model Configurations Summary:")
