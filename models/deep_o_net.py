@@ -156,7 +156,7 @@ class DeepONetOperator(BaseOperator):
         ).to(self.device)
         
         # Optimizer and scheduler
-        self.optimizer = torch.optim.Adam(
+        self.optimizer = torch.optim.AdamW(
             self.model.parameters(), 
             lr=self.lr, 
             weight_decay=self.weight_decay,
