@@ -1,9 +1,5 @@
 Model,Accuracy (%),Relative L2,Parameters,Sensors,Hidden Size,Layers,Sensor Strategy,Activation,Training Time (min),MAE,MSE
-DON_Model1_random,74.26,0.2574,"1,925,281",3500,280,6,random,gelu,25.1,0.097907,0.017829
-DON_Model2_random,75.24,0.2476,"1,763,329",3800,256,6,random,gelu,24.4,0.092234,0.016756
-DON_Model1_chebyshev,73.34,0.2666,"1,919,961",3481,280,6,chebyshev,gelu,25.1,0.101062,0.019123
-DON_Model2_chebyshev,74.91,0.2509,"1,743,105",3721,256,6,chebyshev,gelu,24.4,0.093017,0.017164
-DON_Model1_adaptive,73.66,0.2634,"1,925,281",3500,280,6,adaptive,gelu,25.2,0.100518,0.018652
-DON_Model2_adaptive,75.12,0.2488,"1,763,329",3800,256,6,adaptive,gelu,24.7,0.092552,0.016909
-DON_Model1_adaptive,72.57,0.2743,"1,925,281",3500,280,6,uniform,gelu,25.2,0.104125,0.020331
-DON_Model2_uniform,75.16,0.2484,"1,763,329",3800,256,6,uniform,gelu,24.9,0.092334,0.016958
+DON_Wide_Shallow_256sens_chebyshev,76.63,0.2337,"4,464,641",256,1024,2,chebyshev,gelu,32.7,0.089001,0.014766
+DON_Wide_Shallow_256sens_random,76.59,0.2341,"4,464,641",256,1024,2,random,gelu,32.4,0.088369,0.014718
+DON_Wide_Shallow_256sens_adaptive,75.92,0.2408,"4,464,641",256,1024,2,adaptive,gelu,32.7,0.090137,0.015658
+DON_Wide_Shallow_256sens_uniform,49.51,0.5049,"4,464,641",256,1024,2,uniform,gelu,32.8,0.167221,0.095941

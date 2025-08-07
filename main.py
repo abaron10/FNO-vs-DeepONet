@@ -23,7 +23,7 @@ if __name__ == "__main__":
     GRID_SIZE = 64
     
     # CORRECTED: Use proper data sizes
-    TRAIN_SIZE = 8000
+    TRAIN_SIZE = 9000
     TEST_SIZE = 3000
     
     dm = DataModule(grid=GRID_SIZE, n_train=TRAIN_SIZE, n_test=TEST_SIZE)
@@ -52,8 +52,8 @@ if __name__ == "__main__":
             device,
             "DeepONet_Wide_Shallow_256sens_chebyshev",
             grid_size=GRID_SIZE,
-            n_sensors=256,                   # More sensors
-            hidden_size=1024,                 # Very wide
+            n_sensors=100,                   # More sensors
+            hidden_size=512,                 # Very wide
             num_layers=2,                    # Very shallow
             activation='gelu',               # Better for wide networks
             lr=5e-4,                        # Lower LR for wide network
@@ -69,8 +69,8 @@ if __name__ == "__main__":
             device,
             "DeepONet_Wide_Shallow_256sens_random",
             grid_size=GRID_SIZE,
-            n_sensors=256,                   # More sensors
-            hidden_size=1024,                 # Very wide
+            n_sensors=100,                   # More sensors
+            hidden_size=512,                 # Very wide
             num_layers=2,                    # Very shallow
             activation='gelu',               # Better for wide networks
             lr=5e-4,                        # Lower LR for wide network
@@ -86,8 +86,8 @@ if __name__ == "__main__":
             device,
             "DeepONet_Wide_Shallow_256sens_adaptive",
             grid_size=GRID_SIZE,
-            n_sensors=256,                   # More sensors
-            hidden_size=1024,                 # Very wide
+            n_sensors=100,                   # More sensors
+            hidden_size=512,                 # Very wide
             num_layers=2,                    # Very shallow
             activation='gelu',               # Better for wide networks
             lr=5e-4,                        # Lower LR for wide network
@@ -103,8 +103,8 @@ if __name__ == "__main__":
             device,
             "DeepONet_Wide_Shallow_256sens_uniform",
             grid_size=GRID_SIZE,
-            n_sensors=256,                   # More sensors
-            hidden_size=1024,                 # Very wide
+            n_sensors=100,                   # More sensors
+            hidden_size=512,                 # Very wide
             num_layers=2,                    # Very shallow
             activation='gelu',               # Better for wide networks
             lr=5e-4,                        # Lower LR for wide network
@@ -145,7 +145,7 @@ if __name__ == "__main__":
         print(f"   Est. Parameters: ~{params_count:,}")
     print("-" * 80)
     
-    runner = BenchmarkRunner(models, dm, 1000)  
+    runner = BenchmarkRunner(models, dm, 2000)  
     runner.device = device  
     scores = runner.run()
     
