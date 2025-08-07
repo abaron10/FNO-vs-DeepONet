@@ -62,8 +62,7 @@ if __name__ == "__main__":
         epochs=800,
         sensor_strategy='chebyshev',
         normalize_sensors=True,
-        dropout=0.1,                    # Increased dropout for regularization
-        batch_size=64                   # Add explicit batch size if not set
+        dropout=0.1                     # Increased dropout for regularization
     ),
     
     DeepONetOperator(
@@ -81,8 +80,7 @@ if __name__ == "__main__":
         epochs=800,
         sensor_strategy='random',
         normalize_sensors=True,
-        dropout=0.15,                   # Higher dropout for noisy strategy
-        batch_size=64
+        dropout=0.15                    # Higher dropout for noisy strategy
     ),
     
     DeepONetOperator(
@@ -100,8 +98,7 @@ if __name__ == "__main__":
         epochs=800,
         sensor_strategy='adaptive',
         normalize_sensors=True,
-        dropout=0.08,                   # Lower dropout as adaptive is smarter
-        batch_size=64
+        dropout=0.08                    # Lower dropout as adaptive is smarter
     ),
     
     DeepONetOperator(
@@ -119,8 +116,7 @@ if __name__ == "__main__":
         epochs=800,
         sensor_strategy='uniform',
         normalize_sensors=True,
-        dropout=0.2,                   # Highest dropout for stability
-        batch_size=64
+        dropout=0.2                    # Highest dropout for stability
     ),
 ]
     
