@@ -144,7 +144,7 @@ if __name__ == "__main__":
         print(f"   Training: {model.epochs} epochs, LR={model.lr}, WD={model.weight_decay}")
         print(f"   Est. Parameters: ~{params_count:,}")
     print("-" * 80)
-    
+    #jksks
     runner = BenchmarkRunner(models, dm, 2000)  
     runner.device = device  
     scores = runner.run()
