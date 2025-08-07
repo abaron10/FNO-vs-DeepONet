@@ -6,6 +6,16 @@
   <component name="ChangeListManager">
     <list default="true" id="4d7084f7-1bb3-4237-ae85-131acfc4cffb" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deeponet_charts/architecture_analysis.png" beforeDir="false" afterPath="$PROJECT_DIR$/deeponet_charts/architecture_analysis.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deeponet_charts/architecture_space.png" beforeDir="false" afterPath="$PROJECT_DIR$/deeponet_charts/architecture_space.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deeponet_charts/deeponet_model_efficiency.png" beforeDir="false" afterPath="$PROJECT_DIR$/deeponet_charts/deeponet_model_efficiency.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deeponet_charts/deeponet_relative_l2_error.png" beforeDir="false" afterPath="$PROJECT_DIR$/deeponet_charts/deeponet_relative_l2_error.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deeponet_charts/deeponet_training_time_vs_accuracy.png" beforeDir="false" afterPath="$PROJECT_DIR$/deeponet_charts/deeponet_training_time_vs_accuracy.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deeponet_charts/full_model_comparison.png" beforeDir="false" afterPath="$PROJECT_DIR$/deeponet_charts/full_model_comparison.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deeponet_charts/individual_accuracy_plots/accuracy_grid_view.png" beforeDir="false" afterPath="$PROJECT_DIR$/deeponet_charts/individual_accuracy_plots/accuracy_grid_view.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deeponet_charts/sensor_strategy_analysis.png" beforeDir="false" afterPath="$PROJECT_DIR$/deeponet_charts/sensor_strategy_analysis.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deeponet_charts/summary_table.csv" beforeDir="false" afterPath="$PROJECT_DIR$/deeponet_charts/summary_table.csv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deeponet_charts/training_curves.png" beforeDir="false" afterPath="$PROJECT_DIR$/deeponet_charts/training_curves.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/libs/neuraloperator" beforeDir="false" afterPath="$PROJECT_DIR$/libs/neuraloperator" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/libs/neuraloperator/neuralop/data/datasets/darcy.py" beforeDir="false" afterPath="$PROJECT_DIR$/libs/neuraloperator/neuralop/data/datasets/darcy.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/libs/neuraloperator/neuralop/data/datasets/data/darcy_test_32.pt" beforeDir="false" afterPath="$PROJECT_DIR$/libs/neuraloperator/neuralop/data/datasets/data/darcy_test_32.pt" afterDir="false" />
