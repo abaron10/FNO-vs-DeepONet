@@ -1,5 +1,4 @@
 Model,Accuracy (%),Relative L2,Parameters,Sensors,Hidden Size,Layers,Sensor Strategy,Activation,Training Time (min),MAE,MSE
-DON_Wide_Shallow_256sens_chebyshev,76.63,0.2337,"4,464,641",256,1024,2,chebyshev,gelu,32.7,0.089001,0.014766
-DON_Wide_Shallow_256sens_random,76.59,0.2341,"4,464,641",256,1024,2,random,gelu,32.4,0.088369,0.014718
-DON_Wide_Shallow_256sens_adaptive,75.92,0.2408,"4,464,641",256,1024,2,adaptive,gelu,32.7,0.090137,0.015658
-DON_Wide_Shallow_256sens_uniform,49.51,0.5049,"4,464,641",256,1024,2,uniform,gelu,32.8,0.167221,0.095941
+DON_FourierFiLM_256_chebyshev,78.38,0.2162,"4,438,914",256,256,4,chebyshev,gelu,38.4,0.080648,0.012710
+DON_FourierFiLM_256_random,78.51,0.2149,"4,438,914",256,256,4,random,gelu,38.4,0.079950,0.012534
+DON_FourierFiLM_256_uniform,69.94,0.3006,"6,905,442",256,320,4,uniform,gelu,48.1,0.111250,0.024548

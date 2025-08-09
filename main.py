@@ -9,6 +9,7 @@ from datetime import datetime
 from models.deep_o_net import DeepONetOperator
 
 if __name__ == "__main__":
+    # Reproducibilidad
     torch.manual_seed(42); np.random.seed(42); random.seed(42)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
@@ -25,30 +26,72 @@ if __name__ == "__main__":
     dm = DataModule(grid=GRID_SIZE, n_train=TRAIN_SIZE, n_test=TEST_SIZE)
     dm.setup()
 
+    print("\nDataset Configuration:")
+    print(f"  Grid size: {GRID_SIZE}x{GRID_SIZE}")
+    print(f"  Training samples: {TRAIN_SIZE}")
+    print(f"  Test samples: {TEST_SIZE}")
+    print(f"  Total samples: {TRAIN_SIZE + TEST_SIZE}")
+    print("\n🔬 Running DON Fourier+FiLM (fourier_m=64) with more sensors")
+
     models = [
-        DeepONetOperator(device, name="DON_FourierFiLM_256_chebyshev",
-                         grid_size=GRID_SIZE, n_sensors=256,
-                         hidden_size=256, num_layers=4, activation='gelu', dropout=0.05,
-                         lr=3e-4, epochs=600, weight_decay=1e-4,
-                         sensor_strategy='chebyshev', normalize_sensors=True),
-        DeepONetOperator(device, name="DON_FourierFiLM_256_random",
-                         grid_size=GRID_SIZE, n_sensors=256,
-                         hidden_size=256, num_layers=4, activation='gelu', dropout=0.10,
-                         lr=2.5e-4, epochs=600, weight_decay=1.5e-4,
-                         sensor_strategy='random', normalize_sensors=True),
-        DeepONetOperator(device, name="DON_FourierFiLM_256_uniform",
-                         grid_size=GRID_SIZE, n_sensors=256,
-                         hidden_size=320, num_layers=4, activation='gelu', dropout=0.08,
-                         lr=2e-4, epochs=600, weight_decay=2e-4,
-                         sensor_strategy='uniform', normalize_sensors=True),
+        DeepONetOperator(
+            device,
+            name="DON_FourierFiLM_324_chebyshev",
+            grid_size=GRID_SIZE,
+            n_sensors=324,            # 18x18
+            hidden_size=256,
+            num_layers=4,
+            activation='gelu',
+            dropout=0.05,
+            lr=3e-4,
+            epochs=1000,
+            weight_decay=2e-4,
+            sensor_strategy='chebyshev',
+            normalize_sensors=True,
+            fourier_m=64
+        ),
+        DeepONetOperator(
+            device,
+            name="DON_FourierFiLM_324_random",
+            grid_size=GRID_SIZE,
+            n_sensors=324,
+            hidden_size=256,
+            num_layers=4,
+            activation='gelu',
+            dropout=0.05,
+            lr=2.5e-4,
+            epochs=1000,
+            weight_decay=2e-4,
+            sensor_strategy='random',
+            normalize_sensors=True,
+            fourier_m=64
+        ),
+        DeepONetOperator(
+            device,
+            name="DON_FourierFiLM_400_chebyshev",
+            grid_size=GRID_SIZE,
+            n_sensors=400,            # 20x20
+            hidden_size=256,
+            num_layers=4,
+            activation='gelu',
+            dropout=0.05,
+            lr=2.5e-4,
+            epochs=900,
+            weight_decay=2e-4,
+            sensor_strategy='chebyshev',
+            normalize_sensors=True,
+            fourier_m=64
+        ),
     ]
 
     print("\n📋 Model Configurations Summary:")
     print("-" * 80)
     for i, m in enumerate(models, 1):
-        print(f"{i}. {m.name} — sensors={m.n_sensors} ({m.sensor_strategy}), H={m.hidden_size}, L={m.num_layers}, drop={m.dropout}")
+        print(f"{i}. {m.name} — sensors={m.n_sensors} ({m.sensor_strategy}), "
+              f"H={m.hidden_size}, L={m.num_layers}, drop={m.dropout}, fourier_m=64, "
+              f"epochs={m.epochs}, wd={m.weight_decay}")
 
-    runner = BenchmarkRunner(models, dm, 500)
+    runner = BenchmarkRunner(models, dm, 2000)
     runner.device = device
     scores = runner.run()
 

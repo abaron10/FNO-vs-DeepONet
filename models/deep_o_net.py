@@ -5,7 +5,7 @@ from .base_operator import BaseOperator
 
 # ------------------------ Fourier features ------------------------
 class FourierFeatures(torch.nn.Module):
-    def __init__(self, in_dim=2, m=32, scale=2.0 * math.pi):
+    def __init__(self, in_dim=2, m=64, scale=2.0 * math.pi):
         super().__init__()
         B = torch.randn(in_dim, m) * scale
         self.register_buffer("B", B)
@@ -41,7 +41,7 @@ class DeepONet(torch.nn.Module):
     def __init__(self, branch_input_size: int, trunk_input_size: int = 2,
                  hidden_size: int = 256, num_layers: int = 4,
                  activation: str = 'gelu', dropout: float = 0.05,
-                 fourier_m: int = 32):
+                 fourier_m: int = 64):
         super().__init__()
         self.hidden = hidden_size
         self.num_layers = num_layers
@@ -116,8 +116,8 @@ class DeepONet(torch.nn.Module):
 # ------------------------ Operator ------------------------
 class DeepONetOperator(BaseOperator):
     """
-    - Normalización online (para loss), pero accuracy en escala real:
-      100*(1 - relative_L2_error) como en tu versión original.
+    - Normalización online (para loss), accuracy en escala real:
+      100*(1 - relative_L2_error) (igual a tu implementación original).
     - AMP torch.amp + CosineAnnealingWarmRestarts + EMA.
     """
     def __init__(self, device: torch.device, name: str = "", grid_size: int = 64,
@@ -125,7 +125,8 @@ class DeepONetOperator(BaseOperator):
                  activation: str = 'gelu', dropout: float = 0.05,
                  lr: float = 3e-4, epochs: int = 600, weight_decay: float = 1e-4,
                  step_size: int = 100, gamma: float = 0.5,
-                 sensor_strategy: str = 'chebyshev', normalize_sensors: bool = True):
+                 sensor_strategy: str = 'chebyshev', normalize_sensors: bool = True,
+                 fourier_m: int = 64):
         super().__init__(device, grid_size)
         self.name = name
         self.n_sensors = n_sensors
@@ -140,6 +141,7 @@ class DeepONetOperator(BaseOperator):
         self.gamma = gamma
         self.sensor_strategy = sensor_strategy
         self.normalize_sensors = normalize_sensors
+        self.fourier_m = fourier_m
 
         self._ema = None
         self.ema_decay = 0.995
@@ -155,7 +157,7 @@ class DeepONetOperator(BaseOperator):
         self.model = DeepONet(
             in_branch, trunk_input_size=2,
             hidden_size=self.hidden_size, num_layers=self.num_layers,
-            activation=self.activation, dropout=self.dropout, fourier_m=32
+            activation=self.activation, dropout=self.dropout, fourier_m=self.fourier_m
         ).to(self.device)
 
         self.optimizer = torch.optim.AdamW(self.model.parameters(),
@@ -237,7 +239,7 @@ class DeepONetOperator(BaseOperator):
         with torch.no_grad():
             mu = xb.mean(0, keepdim=True); sd = xb.std(0, keepdim=True).clamp_min(1e-6)
             mu_y = yb.mean(); sd_y = yb.std().clamp_min(1e-6)
-            if not hasattr(self, "_stats_initialized") or not self._stats_initialized:
+            if not self._stats_initialized:
                 self._x_mu, self._x_std = mu, sd
                 self._y_mu, self._y_std = float(mu_y), float(sd_y)
                 self._stats_initialized = True
@@ -278,7 +280,7 @@ class DeepONetOperator(BaseOperator):
             with torch.amp.autocast('cuda', enabled=self.use_amp):
                 pred_n = self.model(xb, self.trunk).reshape(yt_n.shape[0], yt_n.shape[1])
                 rel_n  = self._rel_l2_per_sample(pred_n, yt_n).mean()
-                loss   = self.loss_fn(pred_n, yt_n) + 0.2 * rel_n
+                loss   = self.loss_fn(pred_n, yt_n) + 0.05 * rel_n  # <--- peso relativo bajado
 
             self.scaler.scale(loss).backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
@@ -293,8 +295,7 @@ class DeepONetOperator(BaseOperator):
                 pred_r = self._denorm_y(pred_n)
                 tgt_r  = y.view(y.size(0), -1)
                 acc_b  = (1.0 - self._rel_l2_per_sample(pred_r, tgt_r)) * 100.0
-                # presentar acotada para logs
-                total_acc += acc_b.clamp(0.0, 100.0).sum().item()
+                total_acc += acc_b.clamp(0.0, 100.0).sum().item()  # clamp solo para logging
                 total_loss += loss.item() * x.size(0)
                 total_n    += x.size(0)
 
@@ -381,7 +382,8 @@ class DeepONetOperator(BaseOperator):
                 "num_layers": self.num_layers,
                 "activation": self.activation,
                 "dropout": self.dropout,
-                "sensor_strategy": self.sensor_strategy
+                "sensor_strategy": self.sensor_strategy,
+                "fourier_m": self.fourier_m
             },
             "parameters": params,
             "optimizer": f"AdamW(lr={self.lr})",
