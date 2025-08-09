@@ -110,9 +110,9 @@ class DeepONet(torch.nn.Module):
 # ------------------------ Operator ------------------------
 class DeepONetOperator(BaseOperator):
     """
-    - Normalización online de x (sensores) e y (campo)
+    - Normalización online de x (sensores) e y (campo) para entrenar
     - CosineAnnealingWarmRestarts + torch.amp (API nueva) + EMA
-    - Accuracy = clamp(100*(1-relL2), 0, 100)
+    - Accuracy **exactamente**: 100*(1-relative_L2_error) en escala real
     """
     def __init__(self, device: torch.device, name: str = "", grid_size: int = 64,
                  n_sensors: int = 256, hidden_size: int = 256, num_layers: int = 4,
@@ -140,6 +140,7 @@ class DeepONetOperator(BaseOperator):
         self.ema_decay = 0.995
         self.use_amp = (device.type == "cuda")
         self._epoch_float = 0.0
+        self._stats_initialized = False
 
     def setup(self, data_info):
         self._setup_sensors_and_coords(data_info)
@@ -232,11 +233,16 @@ class DeepONetOperator(BaseOperator):
     def _update_stats(self, xb, yb, momentum=0.01):
         with torch.no_grad():
             mu = xb.mean(0, keepdim=True); sd = xb.std(0, keepdim=True).clamp_min(1e-6)
-            self._x_mu = (1 - momentum) * self._x_mu + momentum * mu
-            self._x_std = (1 - momentum) * self._x_std + momentum * sd
             mu_y = yb.mean(); sd_y = yb.std().clamp_min(1e-6)
-            self._y_mu = float((1 - momentum) * self._y_mu + momentum * mu_y)
-            self._y_std = float((1 - momentum) * self._y_std + momentum * sd_y)
+            if not self._stats_initialized:
+                self._x_mu, self._x_std = mu, sd
+                self._y_mu, self._y_std = float(mu_y), float(sd_y)
+                self._stats_initialized = True
+            else:
+                self._x_mu = (1 - momentum) * self._x_mu + momentum * mu
+                self._x_std = (1 - momentum) * self._x_std + momentum * sd
+                self._y_mu = float((1 - momentum) * self._y_mu + momentum * mu_y)
+                self._y_std = float((1 - momentum) * self._y_std + momentum * sd_y)
 
     def _norm_x(self, xb): return (xb - self._x_mu) / (self._x_std + 1e-8)
     def _norm_y(self, y):  return (y - self._y_mu) / (self._y_std + 1e-8)
@@ -261,17 +267,17 @@ class DeepONetOperator(BaseOperator):
             y = batch["y"].to(self.device)
 
             xb = self._take_sensors(x)
-            self._update_stats(xb, y)
+            self._update_stats(xb, y)               # actualiza stats con y real
             xb = self._norm_x(xb)
-            yt = self._norm_y(y.view(y.size(0), -1))  # [B,N]
+            yt_norm = self._norm_y(y.view(y.size(0), -1))  # [B,N] (para loss)
 
             self.optimizer.zero_grad(set_to_none=True)
             with torch.amp.autocast('cuda', enabled=self.use_amp):
-                pred = self.model(xb, self.trunk)              # expect [B,N]
-                # --- fuerza tamaño exacto [B,N] para evitar broadcasting raro ---
-                pred = pred.reshape(yt.shape[0], yt.shape[1])
-                rel = self._rel_l2_per_sample(pred, yt).mean()
-                loss = self.loss_fn(pred, yt) + 0.2 * rel
+                pred_norm = self.model(xb, self.trunk)      # [B,N] en escala normalizada
+                pred_norm = pred_norm.reshape(yt_norm.shape[0], yt_norm.shape[1])
+                # pérdida en normalizado
+                rel_norm = self._rel_l2_per_sample(pred_norm, yt_norm).mean()
+                loss = self.loss_fn(pred_norm, yt_norm) + 0.2 * rel_norm
 
             self.scaler.scale(loss).backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
@@ -281,10 +287,14 @@ class DeepONetOperator(BaseOperator):
             self._epoch_float += 1.0 / steps_per_epoch
             self.scheduler.step(self._epoch_float)
 
+            # ----- Métrica como en tu código: en escala REAL -----
             with torch.no_grad():
+                pred_real = self._denorm_y(pred_norm)
+                tgt_real  = y.view(y.size(0), -1)
+                rel_real  = self._rel_l2_per_sample(pred_real, tgt_real)  # [B]
+                batch_acc = (1.0 - rel_real) * 100.0                      # puede ser <0 o >100 como el original
+                total_acc += batch_acc.sum().item()
                 total_loss += loss.item() * x.size(0)
-                acc_batch = (1.0 - self._rel_l2_per_sample(pred, yt)).clamp(0.0, 1.0) * 100.0
-                total_acc += acc_batch.sum().item()
                 total_n += x.size(0)
 
             # EMA
@@ -306,7 +316,7 @@ class DeepONetOperator(BaseOperator):
             'val_accuracy': val_acc,
             'lr': self.optimizer.param_groups[0]['lr'],
             'should_stop': False,
-            'info': 'Accuracy = clamp(100*(1-relative_L2), 0, 100)'
+            'info': 'Accuracy computed as 100*(1-relative_L2_error) on real scale'
         }
 
     @torch.no_grad()
@@ -333,27 +343,33 @@ class DeepONetOperator(BaseOperator):
                 x = batch["x"].to(self.device)
                 y = batch["y"].to(self.device)
                 xb = self._norm_x(self._take_sensors(x))
-                yt = self._norm_y(y.view(y.size(0), -1))  # [B,N]
-                pred = self.model(xb, self.trunk)
-                pred = pred.reshape(yt.shape[0], yt.shape[1])  # asegura [B,N]
-                loss = self.loss_fn(pred, yt)
-                acc_vec = (1.0 - self._rel_l2_per_sample(pred, yt)).clamp(0.0, 1.0) * 100.0
+                yt_norm = self._norm_y(y.view(y.size(0), -1))
+                pred_norm = self.model(xb, self.trunk)
+                pred_norm = pred_norm.reshape(yt_norm.shape[0], yt_norm.shape[1])
+                loss = self.loss_fn(pred_norm, yt_norm)
+
+                # métrica en real scale (como el original)
+                pred_real = self._denorm_y(pred_norm)
+                tgt_real  = y.view(y.size(0), -1)
+                rel_real  = self._rel_l2_per_sample(pred_real, tgt_real)
+                acc_vec   = (1.0 - rel_real) * 100.0
+
                 total_loss += loss.item() * x.size(0)
-                total_acc += acc_vec.sum().item()
-                total_n += x.size(0)
+                total_acc  += acc_vec.sum().item()
+                total_n    += x.size(0)
             return total_loss / total_n, total_acc / total_n
 
         return self._with_ema(_eval)
 
-    @torch.no_grad()
+    @torch.no_grad)
     def predict(self, batch):
         self.model.eval()
         x = batch["x"].to(self.device)
         xb = self._norm_x(self._take_sensors(x))
-        pred = self.model(xb, self.trunk)
+        pred_norm = self.model(xb, self.trunk)
         B = xb.size(0)
-        pred = self._denorm_y(pred).reshape(B, 1, self.grid_size, self.grid_size)
-        return pred
+        pred_real = self._denorm_y(pred_norm).reshape(B, 1, self.grid_size, self.grid_size)
+        return pred_real
 
     def get_model_info(self):
         total_params = sum(p.numel() for p in self.model.parameters())
@@ -373,7 +389,7 @@ class DeepONetOperator(BaseOperator):
             "parameters": trainable_params,
             "total_parameters": total_params,
             "optimizer": f"AdamW(lr={self.lr})",
-            "accuracy_method": "clamp(100*(1-relative_L2), 0, 100)"
+            "accuracy_method": "100*(1-relative_L2_error) on real scale"
         }
 
     def count_parameters(self):
