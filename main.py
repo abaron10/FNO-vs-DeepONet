@@ -9,7 +9,6 @@ from datetime import datetime
 from models.deep_o_net import DeepONetOperator
 
 if __name__ == "__main__":
-    # Reproducibilidad
     torch.manual_seed(42); np.random.seed(42); random.seed(42)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
@@ -26,7 +25,6 @@ if __name__ == "__main__":
     dm = DataModule(grid=GRID_SIZE, n_train=TRAIN_SIZE, n_test=TEST_SIZE)
     dm.setup()
 
-    # Info dataset
     try:
         sample_batch = next(iter(dm.train))
         detected_channels = sample_batch["x"].shape[1]
@@ -93,7 +91,6 @@ if __name__ == "__main__":
     print("\n📋 Model Configurations Summary:")
     print("-" * 80)
     for i, model in enumerate(models, 1):
-        # estimación rápida de parámetros
         fourier_m = 32
         branch = model.n_sensors * model.hidden_size + (model.num_layers - 1) * (model.hidden_size ** 2) + model.hidden_size ** 2
         trunk = (2 * fourier_m) * model.hidden_size + (model.num_layers - 1) * (model.hidden_size ** 2) + model.hidden_size ** 2
@@ -110,7 +107,7 @@ if __name__ == "__main__":
     runner.device = device
     scores = runner.run()
 
-    best_accuracy = -float('inf'); best_model = None; results_summary = []
+    best_accuracy = -float('inf'); best_model = None
 
     print("\n📊 Training Results:")
     print("=" * 80)

@@ -23,7 +23,7 @@ class ResBlock(torch.nn.Module):
         self.fc1 = torch.nn.Linear(d, d * 4)
         self.act = act_fn()
         self.drop = torch.nn.Dropout(p)
-        self.fc2 = torch.nn.Linear(d, d)
+        self.fc2 = torch.nn.Linear(d * 4, d)   # <-- CORREGIDO: in_features=d*4
 
     def forward(self, x):  # x: [..., d]
         y = self.ln(x)
@@ -36,11 +36,8 @@ class ResBlock(torch.nn.Module):
 # ------------------------ DeepONet (Fourier + FiLM + dot) ------------------------
 class DeepONet(torch.nn.Module):
     """
-    Branch-Trunk con:
-      - Fourier features en el trunk
-      - Bloques residuales + LayerNorm
-      - FiLM (gammas/betas desde branch modulan trunk)
-      - Ruta de producto punto + bias dependiente de x
+    Branch-Trunk con Fourier features, bloques residuales + LayerNorm,
+    FiLM (gammas/betas desde branch modulan trunk) y ruta de dot-product.
     Forward: (branch_in[B,S], trunk_in[N,2]) -> [B,N]
     """
     def __init__(self, branch_input_size: int, trunk_input_size: int = 2,
@@ -114,20 +111,19 @@ class DeepONet(torch.nn.Module):
         out = dot + bias_x + self.bias            # [B,N]
         return out.contiguous()
 
-
 # ------------------------ Operator ------------------------
 class DeepONetOperator(BaseOperator):
     """
     Compatible con BaseOperator.
     - Normaliza x (sensores) e y (campo)
-    - CosineAnnealingWarmRestarts + AMP + EMA de pesos
+    - CosineAnnealingWarmRestarts + AMP (API nueva) + EMA de pesos
     - Métrica accuracy = clamp(100*(1-relL2), 0, 100)
     """
     def __init__(self, device: torch.device, name: str = "", grid_size: int = 64,
                  n_sensors: int = 256, hidden_size: int = 256, num_layers: int = 4,
                  activation: str = 'gelu', dropout: float = 0.05,
                  lr: float = 3e-4, epochs: int = 600, weight_decay: float = 1e-4,
-                 step_size: int = 100, gamma: float = 0.5,   # conservamos en la firma
+                 step_size: int = 100, gamma: float = 0.5,   # se conserva en la firma
                  sensor_strategy: str = 'chebyshev', normalize_sensors: bool = True):
         super().__init__(device, grid_size)
         self.name = name
@@ -280,7 +276,6 @@ class DeepONetOperator(BaseOperator):
             self.optimizer.zero_grad(set_to_none=True)
             with torch.amp.autocast('cuda', enabled=self.use_amp):
                 pred = self.model(xb, self.trunk)              # [B,N]
-                # Pérdida: MSE + término relativo
                 rel = self._rel_l2_per_sample(pred, yt).mean()
                 loss = self.loss_fn(pred, yt) + 0.2 * rel
 
@@ -295,10 +290,8 @@ class DeepONetOperator(BaseOperator):
 
             with torch.no_grad():
                 total_loss += loss.item() * x.size(0)
-                # accuracy acotada a [0,100]
-                rel_vec = self._rel_l2_per_sample(pred, yt)
-                batch_acc = (1.0 - rel_vec).clamp(min=0.0, max=1.0) * 100.0
-                total_acc += batch_acc.sum().item()
+                acc_batch = (1.0 - self._rel_l2_per_sample(pred, yt)).clamp(0.0, 1.0) * 100.0
+                total_acc += acc_batch.sum().item()
                 total_n += x.size(0)
 
             # EMA de pesos
@@ -350,8 +343,7 @@ class DeepONetOperator(BaseOperator):
                 yt = self._norm_y(y.view(y.size(0), -1))
                 pred = self.model(xb, self.trunk)              # [B,N]
                 loss = self.loss_fn(pred, yt)
-                rel_vec = self._rel_l2_per_sample(pred, yt)
-                acc_vec = (1.0 - rel_vec).clamp(min=0.0, max=1.0) * 100.0
+                acc_vec = (1.0 - self._rel_l2_per_sample(pred, yt)).clamp(0.0, 1.0) * 100.0
                 total_loss += loss.item() * x.size(0)
                 total_acc += acc_vec.sum().item()
                 total_n += x.size(0)
