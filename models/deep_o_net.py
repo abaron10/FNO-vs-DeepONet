@@ -10,7 +10,7 @@ class FourierFeatures(torch.nn.Module):
         B = torch.randn(in_dim, m) * scale
         self.register_buffer("B", B)
 
-    def forward(self, x):  # x: [N,2]
+    def forward(self, x):  # [N,2]
         xb = x @ self.B
         return torch.cat([torch.sin(xb), torch.cos(xb)], dim=-1)  # [N,2m]
 
@@ -23,9 +23,9 @@ class ResBlock(torch.nn.Module):
         self.fc1 = torch.nn.Linear(d, d * 4)
         self.act = act_fn()
         self.drop = torch.nn.Dropout(p)
-        self.fc2 = torch.nn.Linear(d * 4, d)   # correcto
+        self.fc2 = torch.nn.Linear(d * 4, d)
 
-    def forward(self, x):  # x: [..., d]
+    def forward(self, x):  # [..., d]
         y = self.ln(x)
         y = self.fc1(y)
         y = self.act(y)
@@ -33,7 +33,7 @@ class ResBlock(torch.nn.Module):
         y = self.fc2(y)
         return x + y
 
-# ------------------------ DeepONet (Fourier + FiLM + dot) ------------------------
+# ------------------------ DeepONet (Fourier + FiLM estable) ------------------------
 class DeepONet(torch.nn.Module):
     """
     Forward: (branch_in[B,S], trunk_in[N,2]) -> [B,N]
@@ -44,12 +44,11 @@ class DeepONet(torch.nn.Module):
                  fourier_m: int = 32):
         super().__init__()
         self.hidden = hidden_size
-        self.activation = activation
         self.num_layers = num_layers
 
         self.ff = FourierFeatures(trunk_input_size, m=fourier_m)
 
-        # Branch
+        # Branch -> embedding y parámetros FiLM (γ, β)
         b_layers = [torch.nn.Linear(branch_input_size, hidden_size)]
         for _ in range(num_layers - 1):
             b_layers.append(ResBlock(hidden_size, p=dropout, act=activation))
@@ -74,9 +73,12 @@ class DeepONet(torch.nn.Module):
         )
         self.bias = torch.nn.Parameter(torch.zeros(1))
 
-        self._init_weights()
+        # escalas para estabilizar
+        self.dot_scale = 1.0 / math.sqrt(hidden_size)
+        self.beta_scale = 0.1
+        self.gamma_scale = 0.5
 
-    def _init_weights(self):
+        # init
         for m in self.modules():
             if isinstance(m, torch.nn.Linear):
                 torch.nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -89,30 +91,34 @@ class DeepONet(torch.nn.Module):
         gammas = self.to_gamma(B).view(B.size(0), self.num_layers, self.hidden)  # [B,L,H]
         betas  = self.to_beta(B).view(B.size(0), self.num_layers, self.hidden)   # [B,L,H]
 
-        # Trunk base
+        # Estabilizar γ, β
+        gammas = 1.0 + self.gamma_scale * torch.tanh(gammas)  # ~ [0.5, 1.5]
+        betas  = self.beta_scale * torch.tanh(betas)           # ~ [-0.1, 0.1]
+
+        # Trunk
         T = self.trunk_in(self.ff(trunk_in))  # [N,H]
 
-        # Capas + FiLM (broadcast en N)
+        # Capas + FiLM (sin residual extra)
         for l, blk in enumerate(self.trunk_blocks):
-            T = blk(T)  # [N,H]
-            g = gammas[:, l, :]           # [B,H]
-            b = betas[:, l, :]            # [B,H]
-            T = g[:, None, :] * T[None, :, :] + b[:, None, :] + T[None, :, :]  # [B,N,H]
+            T = blk(T)                                      # [N,H]
+            g = gammas[:, l, :].unsqueeze(1)               # [B,1,H]
+            b = betas[:, l, :].unsqueeze(1)                # [B,1,H]
+            T = g * T.unsqueeze(0) + b                     # [B,N,H]
 
         # Proyecciones y combinación
-        b_proj = self.branch_out(B).unsqueeze(1)  # [B,1,H]
-        t_proj = self.trunk_out(T)                # [B,N,H]
-        dot = (b_proj * t_proj).sum(-1)           # [B,N]
-        bias_x = self.bias_trunk(T).squeeze(-1)   # [B,N]
-        out = dot + bias_x + self.bias            # [B,N]
-        return out.contiguous()
+        b_proj = self.branch_out(B).unsqueeze(1)           # [B,1,H]
+        t_proj = self.trunk_out(T)                         # [B,N,H]
+        dot = ((b_proj * t_proj).sum(-1)) * self.dot_scale # [B,N]
+        bias_x = 0.1 * self.bias_trunk(T).squeeze(-1)      # [B,N]
+        out = dot + bias_x + self.bias
+        return out.contiguous()                            # [B,N]
 
 # ------------------------ Operator ------------------------
 class DeepONetOperator(BaseOperator):
     """
-    - Normalización online de x (sensores) e y (campo) para entrenar
-    - CosineAnnealingWarmRestarts + torch.amp (API nueva) + EMA
-    - Accuracy **exactamente**: 100*(1-relative_L2_error) en escala real
+    - Normalización online (para loss), pero accuracy en escala real:
+      100*(1 - relative_L2_error) como en tu versión original.
+    - AMP torch.amp + CosineAnnealingWarmRestarts + EMA.
     """
     def __init__(self, device: torch.device, name: str = "", grid_size: int = 64,
                  n_sensors: int = 256, hidden_size: int = 256, num_layers: int = 4,
@@ -135,30 +141,25 @@ class DeepONetOperator(BaseOperator):
         self.sensor_strategy = sensor_strategy
         self.normalize_sensors = normalize_sensors
 
-        self.best_val_loss = float('inf')
         self._ema = None
         self.ema_decay = 0.995
         self.use_amp = (device.type == "cuda")
         self._epoch_float = 0.0
         self._stats_initialized = False
 
+    # ---------- setup ----------
     def setup(self, data_info):
         self._setup_sensors_and_coords(data_info)
 
         in_branch = len(self.sensor_idx)
         self.model = DeepONet(
-            in_branch,
-            trunk_input_size=2,
-            hidden_size=self.hidden_size,
-            num_layers=self.num_layers,
-            activation=self.activation,
-            dropout=self.dropout,
-            fourier_m=32
+            in_branch, trunk_input_size=2,
+            hidden_size=self.hidden_size, num_layers=self.num_layers,
+            activation=self.activation, dropout=self.dropout, fourier_m=32
         ).to(self.device)
 
-        self.optimizer = torch.optim.AdamW(
-            self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay, betas=(0.9, 0.999)
-        )
+        self.optimizer = torch.optim.AdamW(self.model.parameters(),
+                                           lr=self.lr, weight_decay=self.weight_decay, betas=(0.9, 0.999))
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer, T_0=100, T_mult=2)
         self.scaler = torch.amp.GradScaler('cuda', enabled=self.use_amp)
 
@@ -170,6 +171,7 @@ class DeepONetOperator(BaseOperator):
         self._y_mu = 0.0
         self._y_std = 1.0
 
+    # ---------- sensores/coords ----------
     def _setup_sensors_and_coords(self, data_info):
         max_sensors = self.grid_size ** 2
         k = min(self.n_sensors, max_sensors)
@@ -182,30 +184,30 @@ class DeepONetOperator(BaseOperator):
             self.sensor_idx = np.arange(0, max_sensors, step)[:k]
         elif self.sensor_strategy == 'chebyshev':
             n = int(np.sqrt(k))
-            cheb = np.cos((2 * np.arange(n) + 1) * np.pi / (2 * n))
+            cheb = np.cos((2*np.arange(n)+1)*np.pi/(2*n))
             cheb = (cheb + 1) / 2
-            idx = []
+            idx=[]
             for i in range(n):
                 for j in range(n):
-                    x = int(cheb[i] * (self.grid_size - 1))
-                    y = int(cheb[j] * (self.grid_size - 1))
-                    idx.append(x * self.grid_size + y)
+                    x = int(cheb[i]*(self.grid_size-1))
+                    y = int(cheb[j]*(self.grid_size-1))
+                    idx.append(x*self.grid_size + y)
             self.sensor_idx = np.array(idx[:k])
         elif self.sensor_strategy == 'adaptive':
             rng = np.random.default_rng(42)
-            base = int(k * 0.6)
-            step = max(1, int(np.sqrt((self.grid_size ** 2) / base)))
-            uniform = []
+            base = int(k*0.6)
+            step = max(1, int(np.sqrt((self.grid_size**2)/base)))
+            uniform=[]
             for i in range(0, self.grid_size, step):
                 for j in range(0, self.grid_size, step):
                     if len(uniform) < base:
-                        uniform.append(i * self.grid_size + j)
-            all_sel = set(uniform)
-            G = self.grid_size
-            edges = set()
+                        uniform.append(i*self.grid_size + j)
+            all_sel=set(uniform)
+            G=self.grid_size
+            edges=set()
             for i in range(G):
-                edges.update({i, (G - 1) * G + i, i * G, i * G + (G - 1)})
-            all_sel.update(list(edges)[:int(k * 0.2)])
+                edges.update({i,(G-1)*G+i, i*G, i*G+(G-1)})
+            all_sel.update(list(edges)[:int(k*0.2)])
             remain = k - len(all_sel)
             if remain > 0:
                 pool = list(set(range(max_sensors)) - all_sel)
@@ -226,6 +228,7 @@ class DeepONetOperator(BaseOperator):
         self.sensor_idx_list = self.sensor_idx.tolist()
         print(f"✓ Set up {len(self.sensor_idx)} sensors using '{self.sensor_strategy}' strategy")
 
+    # ---------- utils ----------
     def _take_sensors(self, x: torch.Tensor) -> torch.Tensor:
         B = x.shape[0]
         return x.view(B, -1)[:, self.sensor_idx]
@@ -234,15 +237,15 @@ class DeepONetOperator(BaseOperator):
         with torch.no_grad():
             mu = xb.mean(0, keepdim=True); sd = xb.std(0, keepdim=True).clamp_min(1e-6)
             mu_y = yb.mean(); sd_y = yb.std().clamp_min(1e-6)
-            if not self._stats_initialized:
+            if not hasattr(self, "_stats_initialized") or not self._stats_initialized:
                 self._x_mu, self._x_std = mu, sd
                 self._y_mu, self._y_std = float(mu_y), float(sd_y)
                 self._stats_initialized = True
             else:
-                self._x_mu = (1 - momentum) * self._x_mu + momentum * mu
-                self._x_std = (1 - momentum) * self._x_std + momentum * sd
-                self._y_mu = float((1 - momentum) * self._y_mu + momentum * mu_y)
-                self._y_std = float((1 - momentum) * self._y_std + momentum * sd_y)
+                self._x_mu = (1-momentum)*self._x_mu + momentum*mu
+                self._x_std= (1-momentum)*self._x_std+ momentum*sd
+                self._y_mu = float((1-momentum)*self._y_mu + momentum*mu_y)
+                self._y_std= float((1-momentum)*self._y_std+ momentum*sd_y)
 
     def _norm_x(self, xb): return (xb - self._x_mu) / (self._x_std + 1e-8)
     def _norm_y(self, y):  return (y - self._y_mu) / (self._y_std + 1e-8)
@@ -262,22 +265,20 @@ class DeepONetOperator(BaseOperator):
 
         steps_per_epoch = max(1, len(train_loader))
 
-        for bidx, batch in enumerate(train_loader):
+        for batch in train_loader:
             x = batch["x"].to(self.device)
             y = batch["y"].to(self.device)
 
             xb = self._take_sensors(x)
-            self._update_stats(xb, y)               # actualiza stats con y real
+            self._update_stats(xb, y)
             xb = self._norm_x(xb)
-            yt_norm = self._norm_y(y.view(y.size(0), -1))  # [B,N] (para loss)
+            yt_n = self._norm_y(y.view(y.size(0), -1))  # [B,N]
 
             self.optimizer.zero_grad(set_to_none=True)
             with torch.amp.autocast('cuda', enabled=self.use_amp):
-                pred_norm = self.model(xb, self.trunk)      # [B,N] en escala normalizada
-                pred_norm = pred_norm.reshape(yt_norm.shape[0], yt_norm.shape[1])
-                # pérdida en normalizado
-                rel_norm = self._rel_l2_per_sample(pred_norm, yt_norm).mean()
-                loss = self.loss_fn(pred_norm, yt_norm) + 0.2 * rel_norm
+                pred_n = self.model(xb, self.trunk).reshape(yt_n.shape[0], yt_n.shape[1])
+                rel_n  = self._rel_l2_per_sample(pred_n, yt_n).mean()
+                loss   = self.loss_fn(pred_n, yt_n) + 0.2 * rel_n
 
             self.scaler.scale(loss).backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
@@ -287,15 +288,15 @@ class DeepONetOperator(BaseOperator):
             self._epoch_float += 1.0 / steps_per_epoch
             self.scheduler.step(self._epoch_float)
 
-            # ----- Métrica como en tu código: en escala REAL -----
+            # accuracy en escala real (como tu implementación)
             with torch.no_grad():
-                pred_real = self._denorm_y(pred_norm)
-                tgt_real  = y.view(y.size(0), -1)
-                rel_real  = self._rel_l2_per_sample(pred_real, tgt_real)  # [B]
-                batch_acc = (1.0 - rel_real) * 100.0                      # puede ser <0 o >100 como el original
-                total_acc += batch_acc.sum().item()
+                pred_r = self._denorm_y(pred_n)
+                tgt_r  = y.view(y.size(0), -1)
+                acc_b  = (1.0 - self._rel_l2_per_sample(pred_r, tgt_r)) * 100.0
+                # presentar acotada para logs
+                total_acc += acc_b.clamp(0.0, 100.0).sum().item()
                 total_loss += loss.item() * x.size(0)
-                total_n += x.size(0)
+                total_n    += x.size(0)
 
             # EMA
             with torch.no_grad():
@@ -316,7 +317,7 @@ class DeepONetOperator(BaseOperator):
             'val_accuracy': val_acc,
             'lr': self.optimizer.param_groups[0]['lr'],
             'should_stop': False,
-            'info': 'Accuracy computed as 100*(1-relative_L2_error) on real scale'
+            'info': 'Accuracy shown as clamp(100*(1-RelL2),0,100); computed on real scale'
         }
 
     @torch.no_grad()
@@ -343,41 +344,37 @@ class DeepONetOperator(BaseOperator):
                 x = batch["x"].to(self.device)
                 y = batch["y"].to(self.device)
                 xb = self._norm_x(self._take_sensors(x))
-                yt_norm = self._norm_y(y.view(y.size(0), -1))
-                pred_norm = self.model(xb, self.trunk)
-                pred_norm = pred_norm.reshape(yt_norm.shape[0], yt_norm.shape[1])
-                loss = self.loss_fn(pred_norm, yt_norm)
+                yt_n = self._norm_y(y.view(y.size(0), -1))
+                pred_n = self.model(xb, self.trunk).reshape(yt_n.shape[0], yt_n.shape[1])
+                loss = self.loss_fn(pred_n, yt_n)
 
-                # métrica en real scale (como el original)
-                pred_real = self._denorm_y(pred_norm)
-                tgt_real  = y.view(y.size(0), -1)
-                rel_real  = self._rel_l2_per_sample(pred_real, tgt_real)
-                acc_vec   = (1.0 - rel_real) * 100.0
+                pred_r = self._denorm_y(pred_n)
+                tgt_r  = y.view(y.size(0), -1)
+                acc_b  = (1.0 - self._rel_l2_per_sample(pred_r, tgt_r)) * 100.0
 
                 total_loss += loss.item() * x.size(0)
-                total_acc  += acc_vec.sum().item()
+                total_acc  += acc_b.clamp(0.0, 100.0).sum().item()
                 total_n    += x.size(0)
             return total_loss / total_n, total_acc / total_n
 
         return self._with_ema(_eval)
 
-    @torch.no_grad
+    @torch.no_grad()
     def predict(self, batch):
         self.model.eval()
         x = batch["x"].to(self.device)
         xb = self._norm_x(self._take_sensors(x))
-        pred_norm = self.model(xb, self.trunk)
+        pred_n = self.model(xb, self.trunk)
         B = xb.size(0)
-        pred_real = self._denorm_y(pred_norm).reshape(B, 1, self.grid_size, self.grid_size)
-        return pred_real
+        pred_r = self._denorm_y(pred_n).reshape(B, 1, self.grid_size, self.grid_size)
+        return pred_r
 
     def get_model_info(self):
-        total_params = sum(p.numel() for p in self.model.parameters())
-        trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         return {
             "name": f"{self.name}_{self.grid_size}x{self.grid_size}",
             "architecture": {
-                "type": "DeepONet Fourier + FiLM",
+                "type": "DeepONet Fourier + FiLM (stable)",
                 "grid": f"{self.grid_size}×{self.grid_size}",
                 "n_sensors": len(self.sensor_idx),
                 "hidden_size": self.hidden_size,
@@ -386,8 +383,7 @@ class DeepONetOperator(BaseOperator):
                 "dropout": self.dropout,
                 "sensor_strategy": self.sensor_strategy
             },
-            "parameters": trainable_params,
-            "total_parameters": total_params,
+            "parameters": params,
             "optimizer": f"AdamW(lr={self.lr})",
             "accuracy_method": "100*(1-relative_L2_error) on real scale"
         }
