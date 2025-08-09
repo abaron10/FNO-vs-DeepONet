@@ -7,7 +7,7 @@ from metrics import BenchmarkRunner
 from datetime import datetime
 
 # Importa el operador del archivo único
-from deep_o_net import DeepONetOperator
+from models import DeepONetOperator
 
 if __name__ == "__main__":
     # Seeds
