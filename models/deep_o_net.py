@@ -14,7 +14,7 @@ class FourierFeatures(torch.nn.Module):
         xb = x @ self.B
         return torch.cat([torch.sin(xb), torch.cos(xb)], dim=-1)  # [N,2m]
 
-# ------------------------ Residual block (opera sobre el último dim) ------------------------
+# ------------------------ Residual block ------------------------
 class ResBlock(torch.nn.Module):
     def __init__(self, d, p=0.0, act="gelu"):
         super().__init__()
@@ -23,7 +23,7 @@ class ResBlock(torch.nn.Module):
         self.fc1 = torch.nn.Linear(d, d * 4)
         self.act = act_fn()
         self.drop = torch.nn.Dropout(p)
-        self.fc2 = torch.nn.Linear(d * 4, d)   # <-- CORREGIDO: in_features=d*4
+        self.fc2 = torch.nn.Linear(d * 4, d)   # correcto
 
     def forward(self, x):  # x: [..., d]
         y = self.ln(x)
@@ -36,8 +36,6 @@ class ResBlock(torch.nn.Module):
 # ------------------------ DeepONet (Fourier + FiLM + dot) ------------------------
 class DeepONet(torch.nn.Module):
     """
-    Branch-Trunk con Fourier features, bloques residuales + LayerNorm,
-    FiLM (gammas/betas desde branch modulan trunk) y ruta de dot-product.
     Forward: (branch_in[B,S], trunk_in[N,2]) -> [B,N]
     """
     def __init__(self, branch_input_size: int, trunk_input_size: int = 2,
@@ -49,10 +47,9 @@ class DeepONet(torch.nn.Module):
         self.activation = activation
         self.num_layers = num_layers
 
-        # Fourier features para el trunk
         self.ff = FourierFeatures(trunk_input_size, m=fourier_m)
 
-        # ----- Branch -----
+        # Branch
         b_layers = [torch.nn.Linear(branch_input_size, hidden_size)]
         for _ in range(num_layers - 1):
             b_layers.append(ResBlock(hidden_size, p=dropout, act=activation))
@@ -60,14 +57,14 @@ class DeepONet(torch.nn.Module):
         self.to_gamma = torch.nn.Linear(hidden_size, num_layers * hidden_size)
         self.to_beta  = torch.nn.Linear(hidden_size, num_layers * hidden_size)
 
-        # ----- Trunk -----
+        # Trunk
         t_in = 2 * fourier_m
         self.trunk_in = torch.nn.Linear(t_in, hidden_size)
         self.trunk_blocks = torch.nn.ModuleList(
             [ResBlock(hidden_size, p=dropout, act=activation) for _ in range(num_layers)]
         )
 
-        # Proyecciones y bias
+        # Heads
         self.branch_out = torch.nn.Linear(hidden_size, hidden_size, bias=False)
         self.trunk_out  = torch.nn.Linear(hidden_size, hidden_size, bias=False)
         self.bias_trunk = torch.nn.Sequential(
@@ -92,18 +89,17 @@ class DeepONet(torch.nn.Module):
         gammas = self.to_gamma(B).view(B.size(0), self.num_layers, self.hidden)  # [B,L,H]
         betas  = self.to_beta(B).view(B.size(0), self.num_layers, self.hidden)   # [B,L,H]
 
-        # Trunk base (sin lote)
+        # Trunk base
         T = self.trunk_in(self.ff(trunk_in))  # [N,H]
 
-        # Aplicar capas + FiLM (broadcast sobre N)
+        # Capas + FiLM (broadcast en N)
         for l, blk in enumerate(self.trunk_blocks):
             T = blk(T)  # [N,H]
-            g = gammas[:, l, :]  # [B,H]
-            b = betas[:, l, :]   # [B,H]
-            # -> [B,N,H]
-            T = g[:, None, :] * T[None, :, :] + b[:, None, :] + T[None, :, :]
+            g = gammas[:, l, :]           # [B,H]
+            b = betas[:, l, :]            # [B,H]
+            T = g[:, None, :] * T[None, :, :] + b[:, None, :] + T[None, :, :]  # [B,N,H]
 
-        # Proyección y combinación
+        # Proyecciones y combinación
         b_proj = self.branch_out(B).unsqueeze(1)  # [B,1,H]
         t_proj = self.trunk_out(T)                # [B,N,H]
         dot = (b_proj * t_proj).sum(-1)           # [B,N]
@@ -114,16 +110,15 @@ class DeepONet(torch.nn.Module):
 # ------------------------ Operator ------------------------
 class DeepONetOperator(BaseOperator):
     """
-    Compatible con BaseOperator.
-    - Normaliza x (sensores) e y (campo)
-    - CosineAnnealingWarmRestarts + AMP (API nueva) + EMA de pesos
-    - Métrica accuracy = clamp(100*(1-relL2), 0, 100)
+    - Normalización online de x (sensores) e y (campo)
+    - CosineAnnealingWarmRestarts + torch.amp (API nueva) + EMA
+    - Accuracy = clamp(100*(1-relL2), 0, 100)
     """
     def __init__(self, device: torch.device, name: str = "", grid_size: int = 64,
                  n_sensors: int = 256, hidden_size: int = 256, num_layers: int = 4,
                  activation: str = 'gelu', dropout: float = 0.05,
                  lr: float = 3e-4, epochs: int = 600, weight_decay: float = 1e-4,
-                 step_size: int = 100, gamma: float = 0.5,   # se conserva en la firma
+                 step_size: int = 100, gamma: float = 0.5,
                  sensor_strategy: str = 'chebyshev', normalize_sensors: bool = True):
         super().__init__(device, grid_size)
         self.name = name
@@ -144,9 +139,8 @@ class DeepONetOperator(BaseOperator):
         self._ema = None
         self.ema_decay = 0.995
         self.use_amp = (device.type == "cuda")
-        self._epoch_float = 0.0  # para scheduler fraccional
+        self._epoch_float = 0.0
 
-    # ---------- setup ----------
     def setup(self, data_info):
         self._setup_sensors_and_coords(data_info)
 
@@ -169,13 +163,12 @@ class DeepONetOperator(BaseOperator):
 
         self.loss_fn = torch.nn.MSELoss()
 
-        # stats normalización (online)
+        # stats normalización
         self._x_mu = torch.zeros(1, in_branch, device=self.device)
         self._x_std = torch.ones(1, in_branch, device=self.device)
         self._y_mu = 0.0
         self._y_std = 1.0
 
-    # ---------- sensores/coords ----------
     def _setup_sensors_and_coords(self, data_info):
         max_sensors = self.grid_size ** 2
         k = min(self.n_sensors, max_sensors)
@@ -232,7 +225,6 @@ class DeepONetOperator(BaseOperator):
         self.sensor_idx_list = self.sensor_idx.tolist()
         print(f"✓ Set up {len(self.sensor_idx)} sensors using '{self.sensor_strategy}' strategy")
 
-    # ---------- utils ----------
     def _take_sensors(self, x: torch.Tensor) -> torch.Tensor:
         B = x.shape[0]
         return x.view(B, -1)[:, self.sensor_idx]
@@ -271,11 +263,13 @@ class DeepONetOperator(BaseOperator):
             xb = self._take_sensors(x)
             self._update_stats(xb, y)
             xb = self._norm_x(xb)
-            yt = self._norm_y(y.view(y.size(0), -1))
+            yt = self._norm_y(y.view(y.size(0), -1))  # [B,N]
 
             self.optimizer.zero_grad(set_to_none=True)
             with torch.amp.autocast('cuda', enabled=self.use_amp):
-                pred = self.model(xb, self.trunk)              # [B,N]
+                pred = self.model(xb, self.trunk)              # expect [B,N]
+                # --- fuerza tamaño exacto [B,N] para evitar broadcasting raro ---
+                pred = pred.reshape(yt.shape[0], yt.shape[1])
                 rel = self._rel_l2_per_sample(pred, yt).mean()
                 loss = self.loss_fn(pred, yt) + 0.2 * rel
 
@@ -284,7 +278,6 @@ class DeepONetOperator(BaseOperator):
             self.scaler.step(self.optimizer)
             self.scaler.update()
 
-            # Scheduler por iteración (época fraccional)
             self._epoch_float += 1.0 / steps_per_epoch
             self.scheduler.step(self._epoch_float)
 
@@ -294,7 +287,7 @@ class DeepONetOperator(BaseOperator):
                 total_acc += acc_batch.sum().item()
                 total_n += x.size(0)
 
-            # EMA de pesos
+            # EMA
             with torch.no_grad():
                 if self._ema is None:
                     self._ema = [p.detach().clone() for p in self.model.parameters() if p.requires_grad]
@@ -340,8 +333,9 @@ class DeepONetOperator(BaseOperator):
                 x = batch["x"].to(self.device)
                 y = batch["y"].to(self.device)
                 xb = self._norm_x(self._take_sensors(x))
-                yt = self._norm_y(y.view(y.size(0), -1))
-                pred = self.model(xb, self.trunk)              # [B,N]
+                yt = self._norm_y(y.view(y.size(0), -1))  # [B,N]
+                pred = self.model(xb, self.trunk)
+                pred = pred.reshape(yt.shape[0], yt.shape[1])  # asegura [B,N]
                 loss = self.loss_fn(pred, yt)
                 acc_vec = (1.0 - self._rel_l2_per_sample(pred, yt)).clamp(0.0, 1.0) * 100.0
                 total_loss += loss.item() * x.size(0)
@@ -356,9 +350,9 @@ class DeepONetOperator(BaseOperator):
         self.model.eval()
         x = batch["x"].to(self.device)
         xb = self._norm_x(self._take_sensors(x))
-        pred = self.model(xb, self.trunk)                      # [B,N] normalizado
+        pred = self.model(xb, self.trunk)
         B = xb.size(0)
-        pred = self._denorm_y(pred).view(B, 1, self.grid_size, self.grid_size)
+        pred = self._denorm_y(pred).reshape(B, 1, self.grid_size, self.grid_size)
         return pred
 
     def get_model_info(self):
