@@ -48,7 +48,7 @@ if __name__ == "__main__":
     for i, m in enumerate(models, 1):
         print(f"{i}. {m.name} — sensors={m.n_sensors} ({m.sensor_strategy}), H={m.hidden_size}, L={m.num_layers}, drop={m.dropout}")
 
-    runner = BenchmarkRunner(models, dm, 2000)
+    runner = BenchmarkRunner(models, dm, 500)
     runner.device = device
     scores = runner.run()
 
