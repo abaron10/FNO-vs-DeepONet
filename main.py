@@ -20,8 +20,8 @@ if __name__ == "__main__":
     print(f"Using device: {device}")
 
     GRID_SIZE = 64
-    TRAIN_SIZE = 9000
-    TEST_SIZE = 3000
+    TRAIN_SIZE = 12000
+    TEST_SIZE = 5000
 
     dm = DataModule(grid=GRID_SIZE, n_train=TRAIN_SIZE, n_test=TEST_SIZE)
     dm.setup()
@@ -91,7 +91,7 @@ if __name__ == "__main__":
               f"H={m.hidden_size}, L={m.num_layers}, drop={m.dropout}, fourier_m=64, "
               f"epochs={m.epochs}, wd={m.weight_decay}")
 
-    runner = BenchmarkRunner(models, dm, 2000)
+    runner = BenchmarkRunner(models, dm, 500)
     runner.device = device
     scores = runner.run()
 
