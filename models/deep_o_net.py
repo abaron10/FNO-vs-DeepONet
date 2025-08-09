@@ -361,7 +361,7 @@ class DeepONetOperator(BaseOperator):
 
         return self._with_ema(_eval)
 
-    @torch.no_grad)
+    @torch.no_grad
     def predict(self, batch):
         self.model.eval()
         x = batch["x"].to(self.device)
