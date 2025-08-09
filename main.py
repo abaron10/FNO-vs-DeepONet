@@ -1,16 +1,15 @@
 import torch
 import random
 import numpy as np
-import set_up_libs  # si ya lo usas
+import set_up_libs
 from data import DataModule
 from metrics import BenchmarkRunner
 from datetime import datetime
 
-# Importa el operador del archivo único
-from models import DeepONetOperator
+from models.deep_o_net import DeepONetOperator
 
 if __name__ == "__main__":
-    # Seeds
+    # Reproducibilidad
     torch.manual_seed(42); np.random.seed(42); random.seed(42)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
@@ -43,7 +42,6 @@ if __name__ == "__main__":
     print("\n⚠️  Using test set for validation (temporary)")
     print("🔬 DeepONet Fourier+FiLM configs")
 
-    # Modelos (solo cambia estrategia de sensores / regularización)
     models = [
         DeepONetOperator(
             device,
@@ -68,7 +66,7 @@ if __name__ == "__main__":
             hidden_size=256,
             num_layers=4,
             activation='gelu',
-            dropout=0.10,        # más regularización para random
+            dropout=0.10,
             lr=2.5e-4,
             epochs=600,
             weight_decay=1.5e-4,
@@ -80,7 +78,7 @@ if __name__ == "__main__":
             name="DON_FourierFiLM_256_uniform",
             grid_size=GRID_SIZE,
             n_sensors=256,
-            hidden_size=320,     # un poco más ancho para uniform
+            hidden_size=320,
             num_layers=4,
             activation='gelu',
             dropout=0.08,
@@ -95,9 +93,10 @@ if __name__ == "__main__":
     print("\n📋 Model Configurations Summary:")
     print("-" * 80)
     for i, model in enumerate(models, 1):
-        # estimación rápida de parámetros (opcional)
+        # estimación rápida de parámetros
+        fourier_m = 32
         branch = model.n_sensors * model.hidden_size + (model.num_layers - 1) * (model.hidden_size ** 2) + model.hidden_size ** 2
-        trunk = (2 * 32) * model.hidden_size + (model.num_layers - 1) * (model.hidden_size ** 2) + model.hidden_size ** 2
+        trunk = (2 * fourier_m) * model.hidden_size + (model.num_layers - 1) * (model.hidden_size ** 2) + model.hidden_size ** 2
         params_est = branch + trunk + model.hidden_size + 1
         print(f"\n{i}. {model.name}")
         print(f"   Sensors: {model.n_sensors} ({model.sensor_strategy})")
