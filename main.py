@@ -31,62 +31,68 @@ if __name__ == "__main__":
     print(f"  Training samples: {TRAIN_SIZE}")
     print(f"  Test samples: {TEST_SIZE}")
     print(f"  Total samples: {TRAIN_SIZE + TEST_SIZE}")
-    print("\n🔬 DeepONet Fourier+FiLM (m=96) + Sobolev + SensorDropout")
+    print("\n🔬 DeepONet Fourier+FiLM + Sobolev + SensorDropout + SWA (annealed loss)")
 
     models = [
+        # Best-bet para romper 80%
         DeepONetOperator(
             device,
-            name="DON_FourierFiLM_Sob_400_chebyshev",
+            name="DON_FourierFiLM_SWA_400_chebyshev",
             grid_size=GRID_SIZE,
             n_sensors=400,            # 20x20
-            hidden_size=256,
+            hidden_size=320,          # un poco más ancho
             num_layers=4,
             activation='gelu',
             dropout=0.05,
             lr=2.5e-4,
-            epochs=1100,
-            weight_decay=2e-4,
+            epochs=1400,
+            weight_decay=1.5e-4,
             sensor_strategy='chebyshev',
             normalize_sensors=True,
-            fourier_m=96,
-            sensor_dropout_p=0.10,
-            grad_loss_weight=0.10
+            fourier_m=128,            # trunk más rico
+            sensor_dropout_p=0.10,    # annealed a 0
+            grad_loss_weight=0.10,    # annealed a 0.005
+            swa_start_frac=0.6
         ),
+        # Variante robusta (random)
         DeepONetOperator(
             device,
-            name="DON_FourierFiLM_Sob_484_chebyshev",
-            grid_size=GRID_SIZE,
-            n_sensors=484,            # 22x22
-            hidden_size=256,
-            num_layers=4,
-            activation='gelu',
-            dropout=0.05,
-            lr=2.5e-4,
-            epochs=1100,
-            weight_decay=2e-4,
-            sensor_strategy='chebyshev',
-            normalize_sensors=True,
-            fourier_m=96,
-            sensor_dropout_p=0.10,
-            grad_loss_weight=0.10
-        ),
-        DeepONetOperator(
-            device,
-            name="DON_FourierFiLM_Sob_400_random",
+            name="DON_FourierFiLM_SWA_400_random",
             grid_size=GRID_SIZE,
             n_sensors=400,
-            hidden_size=256,
+            hidden_size=320,
             num_layers=4,
             activation='gelu',
             dropout=0.05,
             lr=2.5e-4,
-            epochs=1100,
-            weight_decay=2e-4,
+            epochs=1400,
+            weight_decay=1.5e-4,
             sensor_strategy='random',
             normalize_sensors=True,
-            fourier_m=96,
+            fourier_m=128,
             sensor_dropout_p=0.10,
-            grad_loss_weight=0.10
+            grad_loss_weight=0.10,
+            swa_start_frac=0.6
+        ),
+        # Opción “wide-and-shallow” con menos epochs (por si el tiempo apremia)
+        DeepONetOperator(
+            device,
+            name="DON_FourierFiLM_SWA_324_chebyshev",
+            grid_size=GRID_SIZE,
+            n_sensors=324,            # 18x18
+            hidden_size=384,
+            num_layers=3,
+            activation='gelu',
+            dropout=0.05,
+            lr=3e-4,
+            epochs=1200,
+            weight_decay=1.5e-4,
+            sensor_strategy='chebyshev',
+            normalize_sensors=True,
+            fourier_m=128,
+            sensor_dropout_p=0.08,
+            grad_loss_weight=0.08,
+            swa_start_frac=0.6
         ),
     ]
 
@@ -95,11 +101,10 @@ if __name__ == "__main__":
     for i, m in enumerate(models, 1):
         print(f"{i}. {m.name} — sensors={m.n_sensors} ({m.sensor_strategy}), "
               f"H={m.hidden_size}, L={m.num_layers}, fourier_m={m.fourier_m}, "
-              f"epochs={m.epochs}, wd={m.weight_decay}, p_drop={m.sensor_dropout_p}, "
-              f"grad_w={m.grad_loss_weight}")
+              f"epochs={m.epochs}, wd={m.weight_decay}, swa_start={m.swa_start_frac}")
     print("-" * 80)
 
-    runner = BenchmarkRunner(models, dm, 2000)
+    runner = BenchmarkRunner(models, dm, 500)
     runner.device = device
     scores = runner.run()
 

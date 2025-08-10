@@ -117,10 +117,11 @@ class DeepONet(torch.nn.Module):
 # ------------------------ Operator ------------------------
 class DeepONetOperator(BaseOperator):
     """
-    - Normalización online (para loss), accuracy en escala real:
-      100*(1 - relative_L2_error).
+    - Normalización online (para loss), accuracy en escala real: 100*(1 - relative_L2_error).
     - AMP torch.amp + CosineAnnealingWarmRestarts + EMA.
-    - Sensor Dropout + Pérdida Sobolev (gradientes espaciales).
+    - Sensor Dropout con annealing + Pérdida Sobolev (gradientes espaciales).
+    - **SWA** (Stochastic Weight Averaging) desde 60% de training para bajar error de generalización.
+    - **Loss schedule** 2 fases (caliente → afinado).
     """
     def __init__(self, device: torch.device, name: str = "", grid_size: int = 64,
                  n_sensors: int = 256, hidden_size: int = 256, num_layers: int = 4,
@@ -130,7 +131,8 @@ class DeepONetOperator(BaseOperator):
                  sensor_strategy: str = 'chebyshev', normalize_sensors: bool = True,
                  fourier_m: int = 96,
                  sensor_dropout_p: float = 0.10,
-                 grad_loss_weight: float = 0.10):
+                 grad_loss_weight: float = 0.10,
+                 swa_start_frac: float = 0.6):
         super().__init__(device, grid_size)
         self.name = name
         self.n_sensors = n_sensors
@@ -147,14 +149,20 @@ class DeepONetOperator(BaseOperator):
         self.normalize_sensors = normalize_sensors
         self.fourier_m = fourier_m
 
-        self.sensor_dropout_p = sensor_dropout_p
-        self.grad_loss_weight = grad_loss_weight
+        self.sensor_dropout_p0 = sensor_dropout_p
+        self.grad_loss_weight0 = grad_loss_weight
 
         self._ema = None
         self.ema_decay = 0.995
         self.use_amp = (device.type == "cuda")
         self._epoch_float = 0.0
         self._stats_initialized = False
+        self._global_epoch = 0
+
+        # SWA
+        self.swa_start_frac = swa_start_frac
+        self._swa_params = None
+        self._swa_n = 0
 
         # kernels Sobel como tensores normales (no buffers de nn.Module)
         sobel_x = torch.tensor([[1, 0, -1],
@@ -282,6 +290,34 @@ class DeepONetOperator(BaseOperator):
         gy = F.conv2d(f, self.sobel_y, padding=1)
         return gx.view(B, -1), gy.view(B, -1)
 
+    def _loss_weights(self):
+        """
+        Devuelve: (w_rel, w_grad, p_drop)
+        - Annealing lineal desde epoch 0 → epochs:
+          * p_drop: decae de p0 → 0
+          * w_grad: decae de w0 → 0.05*w0
+          * w_rel : decae de 0.05 → 0.02 (suave)
+        """
+        t = min(max(self._global_epoch / max(self.epochs, 1), 0.0), 1.0)
+        p_drop = self.sensor_dropout_p0 * (1.0 - t)
+        w_grad = self.grad_loss_weight0 * (0.05 + 0.95 * (1.0 - t))
+        w_rel  = 0.05 - 0.03 * t
+        return w_rel, w_grad, p_drop
+
+    def _maybe_update_swa(self):
+        start = int(self.swa_start_frac * self.epochs)
+        if self._global_epoch < start:
+            return
+        params = [p for p in self.model.parameters() if p.requires_grad]
+        if self._swa_params is None:
+            self._swa_params = [p.detach().clone() for p in params]
+            self._swa_n = 1
+        else:
+            self._swa_n += 1
+            with torch.no_grad():
+                for swa, p in zip(self._swa_params, params):
+                    swa.add_(p.detach().sub(swa), alpha=1.0 / self._swa_n)
+
     # ---------- train ----------
     def train_epoch(self, train_loader, val_loader=None):
         self.model.train()
@@ -291,15 +327,17 @@ class DeepONetOperator(BaseOperator):
 
         steps_per_epoch = max(1, len(train_loader))
 
+        w_rel, w_grad, p_drop = self._loss_weights()
+
         for batch in train_loader:
             x = batch["x"].to(self.device)
             y = batch["y"].to(self.device)
 
             xb = self._take_sensors(x)
 
-            # --- Sensor dropout (solo entrenamiento)
-            if self.sensor_dropout_p > 0.0:
-                mask = torch.rand_like(xb) > self.sensor_dropout_p
+            # --- Sensor dropout (annealed)
+            if p_drop > 0.0:
+                mask = (torch.rand_like(xb) > p_drop)
                 xb = xb * mask
 
             self._update_stats(xb, y)
@@ -316,7 +354,7 @@ class DeepONetOperator(BaseOperator):
                 grad_loss = self.loss_fn(px, tx) + self.loss_fn(py, ty)
 
                 rel_n  = self._rel_l2_per_sample(pred_n, yt_n).mean()
-                loss   = self.loss_fn(pred_n, yt_n) + 0.05 * rel_n + self.grad_loss_weight * grad_loss
+                loss   = self.loss_fn(pred_n, yt_n) + w_rel * rel_n + w_grad * grad_loss
 
             self.scaler.scale(loss).backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
@@ -335,13 +373,17 @@ class DeepONetOperator(BaseOperator):
                 total_loss += loss.item() * x.size(0)
                 total_n    += x.size(0)
 
-            # EMA
-            with torch.no_grad():
-                if self._ema is None:
-                    self._ema = [p.detach().clone() for p in self.model.parameters() if p.requires_grad]
-                else:
-                    for ema, p in zip(self._ema, [q for q in self.model.parameters() if q.requires_grad]):
-                        ema.mul_(0.995).add_(p.detach(), alpha=1 - 0.995)
+        # EMA
+        with torch.no_grad():
+            if self._ema is None:
+                self._ema = [p.detach().clone() for p in self.model.parameters() if p.requires_grad]
+            else:
+                for ema, p in zip(self._ema, [q for q in self.model.parameters() if q.requires_grad]):
+                    ema.mul_(self.ema_decay).add_(p.detach(), alpha=1 - self.ema_decay)
+
+        # SWA update al final de la época
+        self._maybe_update_swa()
+        self._global_epoch += 1
 
         val_loss, val_acc = (float("inf"), 0.0)
         if val_loader is not None:
@@ -354,17 +396,15 @@ class DeepONetOperator(BaseOperator):
             'val_accuracy': val_acc,
             'lr': self.optimizer.param_groups[0]['lr'],
             'should_stop': False,
-            'info': 'Loss=MSE+0.05*RelL2+0.1*GradLoss; Accuracy=100*(1-RelL2) real scale'
+            'info': 'Loss=MSE+w_rel*RelL2+w_grad*GradLoss (annealed); Accuracy=100*(1-RelL2) real scale; EMA+SWA eval'
         }
 
     @torch.no_grad()
-    def _with_ema(self, fn):
-        if self._ema is None:
-            return fn()
+    def _with_weights(self, weight_list, fn):
         params = [p for p in self.model.parameters() if p.requires_grad]
         backup = [p.detach().clone() for p in params]
-        for p, e in zip(params, self._ema):
-            p.data.copy_(e)
+        for p, w in zip(params, weight_list):
+            p.data.copy_(w)
         out = fn()
         for p, b in zip(params, backup):
             p.data.copy_(b)
@@ -372,11 +412,13 @@ class DeepONetOperator(BaseOperator):
 
     @torch.no_grad()
     def evaluate(self, data_loader):
-        def _eval():
+        # preferimos SWA si existe; si no, EMA; si no, pesos actuales
+        def _eval_core():
             self.model.eval()
             total_loss = 0.0
             total_acc = 0.0
             total_n = 0
+            w_rel, w_grad, _ = self._loss_weights()  # para logging consistente
             for batch in data_loader:
                 x = batch["x"].to(self.device)
                 y = batch["y"].to(self.device)
@@ -388,8 +430,8 @@ class DeepONetOperator(BaseOperator):
                 tx, ty = self._gradients(yt_n)
                 grad_loss = self.loss_fn(px, tx) + self.loss_fn(py, ty)
 
-                loss = self.loss_fn(pred_n, yt_n) + 0.05 * self._rel_l2_per_sample(pred_n, yt_n).mean() \
-                       + self.grad_loss_weight * grad_loss
+                loss = self.loss_fn(pred_n, yt_n) + w_rel * self._rel_l2_per_sample(pred_n, yt_n).mean() \
+                       + w_grad * grad_loss
 
                 pred_r = self._denorm_y(pred_n)
                 tgt_r  = y.view(y.size(0), -1)
@@ -400,7 +442,15 @@ class DeepONetOperator(BaseOperator):
                 total_n    += x.size(0)
             return total_loss / total_n, total_acc / total_n
 
-        return self._with_ema(_eval)
+        # 1) SWA si está lista
+        if self._swa_params is not None and self._swa_n > 0:
+            return self._with_weights(self._swa_params, _eval_core)
+        # 2) EMA si existe
+        if self._ema is not None:
+            params = [p for p in self.model.parameters() if p.requires_grad]
+            return self._with_weights(self._ema, _eval_core)
+        # 3) pesos actuales
+        return _eval_core()
 
     @torch.no_grad()
     def predict(self, batch):
@@ -417,7 +467,7 @@ class DeepONetOperator(BaseOperator):
         return {
             "name": f"{self.name}_{self.grid_size}x{self.grid_size}",
             "architecture": {
-                "type": "DeepONet Fourier + FiLM (stable) + Sobolev",
+                "type": "DeepONet Fourier + FiLM (stable) + Sobolev + SWA",
                 "grid": f"{self.grid_size}×{self.grid_size}",
                 "n_sensors": len(self.sensor_idx),
                 "hidden_size": self.hidden_size,
