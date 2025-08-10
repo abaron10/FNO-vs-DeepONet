@@ -104,7 +104,7 @@ if __name__ == "__main__":
               f"epochs={m.epochs}, wd={m.weight_decay}, swa_start={m.swa_start_frac}")
     print("-" * 80)
 
-    runner = BenchmarkRunner(models, dm, 500)
+    runner = BenchmarkRunner(models, dm, 1000)
     runner.device = device
     scores = runner.run()
 
