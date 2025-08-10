@@ -20,8 +20,8 @@ if __name__ == "__main__":
     print(f"Using device: {device}")
 
     GRID_SIZE = 64
-    TRAIN_SIZE = 12000
-    TEST_SIZE = 5000
+    TRAIN_SIZE = 9000
+    TEST_SIZE = 3000
 
     dm = DataModule(grid=GRID_SIZE, n_train=TRAIN_SIZE, n_test=TEST_SIZE)
     dm.setup()
@@ -31,44 +31,12 @@ if __name__ == "__main__":
     print(f"  Training samples: {TRAIN_SIZE}")
     print(f"  Test samples: {TEST_SIZE}")
     print(f"  Total samples: {TRAIN_SIZE + TEST_SIZE}")
-    print("\n🔬 Running DON Fourier+FiLM (fourier_m=64) with more sensors")
+    print("\n🔬 DeepONet Fourier+FiLM (m=96) + Sobolev + SensorDropout")
 
     models = [
         DeepONetOperator(
             device,
-            name="DON_FourierFiLM_324_chebyshev",
-            grid_size=GRID_SIZE,
-            n_sensors=324,            # 18x18
-            hidden_size=256,
-            num_layers=4,
-            activation='gelu',
-            dropout=0.05,
-            lr=3e-4,
-            epochs=1000,
-            weight_decay=2e-4,
-            sensor_strategy='chebyshev',
-            normalize_sensors=True,
-            fourier_m=64
-        ),
-        DeepONetOperator(
-            device,
-            name="DON_FourierFiLM_324_random",
-            grid_size=GRID_SIZE,
-            n_sensors=324,
-            hidden_size=256,
-            num_layers=4,
-            activation='gelu',
-            dropout=0.05,
-            lr=2.5e-4,
-            epochs=1000,
-            weight_decay=2e-4,
-            sensor_strategy='random',
-            normalize_sensors=True,
-            fourier_m=64
-        ),
-        DeepONetOperator(
-            device,
-            name="DON_FourierFiLM_400_chebyshev",
+            name="DON_FourierFiLM_Sob_400_chebyshev",
             grid_size=GRID_SIZE,
             n_sensors=400,            # 20x20
             hidden_size=256,
@@ -76,11 +44,49 @@ if __name__ == "__main__":
             activation='gelu',
             dropout=0.05,
             lr=2.5e-4,
-            epochs=900,
+            epochs=1100,
             weight_decay=2e-4,
             sensor_strategy='chebyshev',
             normalize_sensors=True,
-            fourier_m=64
+            fourier_m=96,
+            sensor_dropout_p=0.10,
+            grad_loss_weight=0.10
+        ),
+        DeepONetOperator(
+            device,
+            name="DON_FourierFiLM_Sob_484_chebyshev",
+            grid_size=GRID_SIZE,
+            n_sensors=484,            # 22x22
+            hidden_size=256,
+            num_layers=4,
+            activation='gelu',
+            dropout=0.05,
+            lr=2.5e-4,
+            epochs=1100,
+            weight_decay=2e-4,
+            sensor_strategy='chebyshev',
+            normalize_sensors=True,
+            fourier_m=96,
+            sensor_dropout_p=0.10,
+            grad_loss_weight=0.10
+        ),
+        DeepONetOperator(
+            device,
+            name="DON_FourierFiLM_Sob_400_random",
+            grid_size=GRID_SIZE,
+            n_sensors=400,
+            hidden_size=256,
+            num_layers=4,
+            activation='gelu',
+            dropout=0.05,
+            lr=2.5e-4,
+            epochs=1100,
+            weight_decay=2e-4,
+            sensor_strategy='random',
+            normalize_sensors=True,
+            fourier_m=96,
+            sensor_dropout_p=0.10,
+            grad_loss_weight=0.10
         ),
     ]
 
@@ -88,10 +94,12 @@ if __name__ == "__main__":
     print("-" * 80)
     for i, m in enumerate(models, 1):
         print(f"{i}. {m.name} — sensors={m.n_sensors} ({m.sensor_strategy}), "
-              f"H={m.hidden_size}, L={m.num_layers}, drop={m.dropout}, fourier_m=64, "
-              f"epochs={m.epochs}, wd={m.weight_decay}")
+              f"H={m.hidden_size}, L={m.num_layers}, fourier_m={m.fourier_m}, "
+              f"epochs={m.epochs}, wd={m.weight_decay}, p_drop={m.sensor_dropout_p}, "
+              f"grad_w={m.grad_loss_weight}")
+    print("-" * 80)
 
-    runner = BenchmarkRunner(models, dm, 500)
+    runner = BenchmarkRunner(models, dm, 2000)
     runner.device = device
     scores = runner.run()
 

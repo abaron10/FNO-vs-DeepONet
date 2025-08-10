@@ -1,11 +1,12 @@
 import math
 import numpy as np
 import torch
+import torch.nn.functional as F
 from .base_operator import BaseOperator
 
 # ------------------------ Fourier features ------------------------
 class FourierFeatures(torch.nn.Module):
-    def __init__(self, in_dim=2, m=64, scale=2.0 * math.pi):
+    def __init__(self, in_dim=2, m=96, scale=2.0 * math.pi):
         super().__init__()
         B = torch.randn(in_dim, m) * scale
         self.register_buffer("B", B)
@@ -41,7 +42,7 @@ class DeepONet(torch.nn.Module):
     def __init__(self, branch_input_size: int, trunk_input_size: int = 2,
                  hidden_size: int = 256, num_layers: int = 4,
                  activation: str = 'gelu', dropout: float = 0.05,
-                 fourier_m: int = 64):
+                 fourier_m: int = 96):
         super().__init__()
         self.hidden = hidden_size
         self.num_layers = num_layers
@@ -117,8 +118,9 @@ class DeepONet(torch.nn.Module):
 class DeepONetOperator(BaseOperator):
     """
     - Normalización online (para loss), accuracy en escala real:
-      100*(1 - relative_L2_error) (igual a tu implementación original).
+      100*(1 - relative_L2_error).
     - AMP torch.amp + CosineAnnealingWarmRestarts + EMA.
+    - Sensor Dropout + Pérdida Sobolev (gradientes espaciales).
     """
     def __init__(self, device: torch.device, name: str = "", grid_size: int = 64,
                  n_sensors: int = 256, hidden_size: int = 256, num_layers: int = 4,
@@ -126,7 +128,9 @@ class DeepONetOperator(BaseOperator):
                  lr: float = 3e-4, epochs: int = 600, weight_decay: float = 1e-4,
                  step_size: int = 100, gamma: float = 0.5,
                  sensor_strategy: str = 'chebyshev', normalize_sensors: bool = True,
-                 fourier_m: int = 64):
+                 fourier_m: int = 96,
+                 sensor_dropout_p: float = 0.10,
+                 grad_loss_weight: float = 0.10):
         super().__init__(device, grid_size)
         self.name = name
         self.n_sensors = n_sensors
@@ -143,11 +147,22 @@ class DeepONetOperator(BaseOperator):
         self.normalize_sensors = normalize_sensors
         self.fourier_m = fourier_m
 
+        self.sensor_dropout_p = sensor_dropout_p
+        self.grad_loss_weight = grad_loss_weight
+
         self._ema = None
         self.ema_decay = 0.995
         self.use_amp = (device.type == "cuda")
         self._epoch_float = 0.0
         self._stats_initialized = False
+
+        # kernels Sobel como tensores normales (no buffers de nn.Module)
+        sobel_x = torch.tensor([[1, 0, -1],
+                                [2, 0, -2],
+                                [1, 0, -1]], dtype=torch.float32) / 8.0
+        sobel_y = sobel_x.t().contiguous()
+        self.sobel_x = sobel_x.view(1, 1, 3, 3).to(self.device)
+        self.sobel_y = sobel_y.view(1, 1, 3, 3).to(self.device)
 
     # ---------- setup ----------
     def setup(self, data_info):
@@ -258,6 +273,15 @@ class DeepONetOperator(BaseOperator):
         t = target.view(target.size(0), -1)
         return (d.norm(dim=1) / (t.norm(dim=1) + 1e-8))
 
+    def _gradients(self, field_flat_norm: torch.Tensor):
+        """Gradientes aproximados (Sobel) sobre campo [B,N] en escala normalizada."""
+        B = field_flat_norm.size(0)
+        g = self.grid_size
+        f = field_flat_norm.view(B, 1, g, g)
+        gx = F.conv2d(f, self.sobel_x, padding=1)
+        gy = F.conv2d(f, self.sobel_y, padding=1)
+        return gx.view(B, -1), gy.view(B, -1)
+
     # ---------- train ----------
     def train_epoch(self, train_loader, val_loader=None):
         self.model.train()
@@ -272,6 +296,12 @@ class DeepONetOperator(BaseOperator):
             y = batch["y"].to(self.device)
 
             xb = self._take_sensors(x)
+
+            # --- Sensor dropout (solo entrenamiento)
+            if self.sensor_dropout_p > 0.0:
+                mask = torch.rand_like(xb) > self.sensor_dropout_p
+                xb = xb * mask
+
             self._update_stats(xb, y)
             xb = self._norm_x(xb)
             yt_n = self._norm_y(y.view(y.size(0), -1))  # [B,N]
@@ -279,8 +309,14 @@ class DeepONetOperator(BaseOperator):
             self.optimizer.zero_grad(set_to_none=True)
             with torch.amp.autocast('cuda', enabled=self.use_amp):
                 pred_n = self.model(xb, self.trunk).reshape(yt_n.shape[0], yt_n.shape[1])
+
+                # --- Grad loss (Sobolev) en escala normalizada
+                px, py = self._gradients(pred_n)
+                tx, ty = self._gradients(yt_n)
+                grad_loss = self.loss_fn(px, tx) + self.loss_fn(py, ty)
+
                 rel_n  = self._rel_l2_per_sample(pred_n, yt_n).mean()
-                loss   = self.loss_fn(pred_n, yt_n) + 0.05 * rel_n  # <--- peso relativo bajado
+                loss   = self.loss_fn(pred_n, yt_n) + 0.05 * rel_n + self.grad_loss_weight * grad_loss
 
             self.scaler.scale(loss).backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
@@ -305,7 +341,7 @@ class DeepONetOperator(BaseOperator):
                     self._ema = [p.detach().clone() for p in self.model.parameters() if p.requires_grad]
                 else:
                     for ema, p in zip(self._ema, [q for q in self.model.parameters() if q.requires_grad]):
-                        ema.mul_(self.ema_decay).add_(p.detach(), alpha=1 - self.ema_decay)
+                        ema.mul_(0.995).add_(p.detach(), alpha=1 - 0.995)
 
         val_loss, val_acc = (float("inf"), 0.0)
         if val_loader is not None:
@@ -318,7 +354,7 @@ class DeepONetOperator(BaseOperator):
             'val_accuracy': val_acc,
             'lr': self.optimizer.param_groups[0]['lr'],
             'should_stop': False,
-            'info': 'Accuracy shown as clamp(100*(1-RelL2),0,100); computed on real scale'
+            'info': 'Loss=MSE+0.05*RelL2+0.1*GradLoss; Accuracy=100*(1-RelL2) real scale'
         }
 
     @torch.no_grad()
@@ -347,7 +383,13 @@ class DeepONetOperator(BaseOperator):
                 xb = self._norm_x(self._take_sensors(x))
                 yt_n = self._norm_y(y.view(y.size(0), -1))
                 pred_n = self.model(xb, self.trunk).reshape(yt_n.shape[0], yt_n.shape[1])
-                loss = self.loss_fn(pred_n, yt_n)
+
+                px, py = self._gradients(pred_n)
+                tx, ty = self._gradients(yt_n)
+                grad_loss = self.loss_fn(px, tx) + self.loss_fn(py, ty)
+
+                loss = self.loss_fn(pred_n, yt_n) + 0.05 * self._rel_l2_per_sample(pred_n, yt_n).mean() \
+                       + self.grad_loss_weight * grad_loss
 
                 pred_r = self._denorm_y(pred_n)
                 tgt_r  = y.view(y.size(0), -1)
@@ -375,7 +417,7 @@ class DeepONetOperator(BaseOperator):
         return {
             "name": f"{self.name}_{self.grid_size}x{self.grid_size}",
             "architecture": {
-                "type": "DeepONet Fourier + FiLM (stable)",
+                "type": "DeepONet Fourier + FiLM (stable) + Sobolev",
                 "grid": f"{self.grid_size}×{self.grid_size}",
                 "n_sensors": len(self.sensor_idx),
                 "hidden_size": self.hidden_size,
