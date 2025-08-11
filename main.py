@@ -38,52 +38,6 @@ if __name__ == "__main__":
     models = [
         DeepONetOperator(
             device,
-            name="DON_MSFF_SWA_576_chebyshev",
-            grid_size=GRID_SIZE,
-            n_sensors=576,          # 24x24
-            hidden_size=320,
-            num_layers=4,
-            activation='gelu',
-            dropout=0.05,
-            lr=2.5e-4,
-            epochs=1500,
-            weight_decay=1.5e-4,
-            sensor_strategy='chebyshev',
-            normalize_sensors=True,
-            m_per_scale=64,                     # 3 escalas → out_dim = 3*2*64 = 384
-            ff_scales=(math.pi, 4*math.pi, 16*math.pi),
-            sensor_dropout_p0=0.10,             # annealed → 0
-            fourier_dropout_p0=0.30,            # annealed → 0
-            w_grad0=0.12, w_grad_end=0.02,
-            w_rel0=0.05,  w_rel_end=0.01,
-            swa_start_frac=0.5,
-            boundary_band=3, boundary_boost=1.6
-        ),
-        DeepONetOperator(
-            device,
-            name="DON_MSFF_SWA_484_chebyshev",
-            grid_size=GRID_SIZE,
-            n_sensors=484,          # 22x22 (por si memoria)
-            hidden_size=320,
-            num_layers=4,
-            activation='gelu',
-            dropout=0.05,
-            lr=2.5e-4,
-            epochs=1500,
-            weight_decay=1.5e-4,
-            sensor_strategy='chebyshev',
-            normalize_sensors=True,
-            m_per_scale=64,
-            ff_scales=(math.pi, 4*math.pi, 16*math.pi),
-            sensor_dropout_p0=0.10,
-            fourier_dropout_p0=0.30,
-            w_grad0=0.12, w_grad_end=0.02,
-            w_rel0=0.05,  w_rel_end=0.01,
-            swa_start_frac=0.5,
-            boundary_band=3, boundary_boost=1.6
-        ),
-        DeepONetOperator(
-            device,
             name="DON_MSFF_SWA_576_random",
             grid_size=GRID_SIZE,
             n_sensors=576,
@@ -115,7 +69,7 @@ if __name__ == "__main__":
               f"epochs={m.epochs}, wd={m.weight_decay}, swa_start={m.swa_start_frac}")
     print("-" * 80)
 
-    runner = BenchmarkRunner(models, dm, 500)
+    runner = BenchmarkRunner(models, dm, 1000)
     runner.device = device
     scores = runner.run()
 
