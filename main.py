@@ -1,5 +1,6 @@
 import torch
 import random
+import math
 import numpy as np
 import set_up_libs
 from data import DataModule
@@ -31,68 +32,78 @@ if __name__ == "__main__":
     print(f"  Training samples: {TRAIN_SIZE}")
     print(f"  Test samples: {TEST_SIZE}")
     print(f"  Total samples: {TRAIN_SIZE + TEST_SIZE}")
-    print("\n🔬 DeepONet Fourier+FiLM + Sobolev + SensorDropout + SWA (annealed loss)")
+    print("\n🔬 DeepONet Multi-Scale RFF + Sobolev + Boundary Weight + SWA")
 
+    # Config base (best-bet) para superar 80%
     models = [
-        # Best-bet para romper 80%
         DeepONetOperator(
             device,
-            name="DON_FourierFiLM_SWA_400_chebyshev",
+            name="DON_MSFF_SWA_576_chebyshev",
             grid_size=GRID_SIZE,
-            n_sensors=400,            # 20x20
-            hidden_size=320,          # un poco más ancho
-            num_layers=4,
-            activation='gelu',
-            dropout=0.05,
-            lr=2.5e-4,
-            epochs=1400,
-            weight_decay=1.5e-4,
-            sensor_strategy='chebyshev',
-            normalize_sensors=True,
-            fourier_m=128,            # trunk más rico
-            sensor_dropout_p=0.10,    # annealed a 0
-            grad_loss_weight=0.10,    # annealed a 0.005
-            swa_start_frac=0.6
-        ),
-        # Variante robusta (random)
-        DeepONetOperator(
-            device,
-            name="DON_FourierFiLM_SWA_400_random",
-            grid_size=GRID_SIZE,
-            n_sensors=400,
+            n_sensors=576,          # 24x24
             hidden_size=320,
             num_layers=4,
             activation='gelu',
             dropout=0.05,
             lr=2.5e-4,
-            epochs=1400,
-            weight_decay=1.5e-4,
-            sensor_strategy='random',
-            normalize_sensors=True,
-            fourier_m=128,
-            sensor_dropout_p=0.10,
-            grad_loss_weight=0.10,
-            swa_start_frac=0.6
-        ),
-        # Opción “wide-and-shallow” con menos epochs (por si el tiempo apremia)
-        DeepONetOperator(
-            device,
-            name="DON_FourierFiLM_SWA_324_chebyshev",
-            grid_size=GRID_SIZE,
-            n_sensors=324,            # 18x18
-            hidden_size=384,
-            num_layers=3,
-            activation='gelu',
-            dropout=0.05,
-            lr=3e-4,
-            epochs=1200,
+            epochs=1500,
             weight_decay=1.5e-4,
             sensor_strategy='chebyshev',
             normalize_sensors=True,
-            fourier_m=128,
-            sensor_dropout_p=0.08,
-            grad_loss_weight=0.08,
-            swa_start_frac=0.6
+            m_per_scale=64,                     # 3 escalas → out_dim = 3*2*64 = 384
+            ff_scales=(math.pi, 4*math.pi, 16*math.pi),
+            sensor_dropout_p0=0.10,             # annealed → 0
+            fourier_dropout_p0=0.30,            # annealed → 0
+            w_grad0=0.12, w_grad_end=0.02,
+            w_rel0=0.05,  w_rel_end=0.01,
+            swa_start_frac=0.5,
+            boundary_band=3, boundary_boost=1.6
+        ),
+        DeepONetOperator(
+            device,
+            name="DON_MSFF_SWA_484_chebyshev",
+            grid_size=GRID_SIZE,
+            n_sensors=484,          # 22x22 (por si memoria)
+            hidden_size=320,
+            num_layers=4,
+            activation='gelu',
+            dropout=0.05,
+            lr=2.5e-4,
+            epochs=1500,
+            weight_decay=1.5e-4,
+            sensor_strategy='chebyshev',
+            normalize_sensors=True,
+            m_per_scale=64,
+            ff_scales=(math.pi, 4*math.pi, 16*math.pi),
+            sensor_dropout_p0=0.10,
+            fourier_dropout_p0=0.30,
+            w_grad0=0.12, w_grad_end=0.02,
+            w_rel0=0.05,  w_rel_end=0.01,
+            swa_start_frac=0.5,
+            boundary_band=3, boundary_boost=1.6
+        ),
+        DeepONetOperator(
+            device,
+            name="DON_MSFF_SWA_576_random",
+            grid_size=GRID_SIZE,
+            n_sensors=576,
+            hidden_size=320,
+            num_layers=4,
+            activation='gelu',
+            dropout=0.05,
+            lr=2.5e-4,
+            epochs=1500,
+            weight_decay=1.5e-4,
+            sensor_strategy='random',
+            normalize_sensors=True,
+            m_per_scale=64,
+            ff_scales=(math.pi, 4*math.pi, 16*math.pi),
+            sensor_dropout_p0=0.10,
+            fourier_dropout_p0=0.30,
+            w_grad0=0.12, w_grad_end=0.02,
+            w_rel0=0.05,  w_rel_end=0.01,
+            swa_start_frac=0.5,
+            boundary_band=3, boundary_boost=1.6
         ),
     ]
 
@@ -100,11 +111,11 @@ if __name__ == "__main__":
     print("-" * 80)
     for i, m in enumerate(models, 1):
         print(f"{i}. {m.name} — sensors={m.n_sensors} ({m.sensor_strategy}), "
-              f"H={m.hidden_size}, L={m.num_layers}, fourier_m={m.fourier_m}, "
+              f"H={m.hidden_size}, L={m.num_layers}, m_per_scale={m.m_per_scale}, "
               f"epochs={m.epochs}, wd={m.weight_decay}, swa_start={m.swa_start_frac}")
     print("-" * 80)
 
-    runner = BenchmarkRunner(models, dm, 1000)
+    runner = BenchmarkRunner(models, dm, 500)
     runner.device = device
     scores = runner.run()
 
