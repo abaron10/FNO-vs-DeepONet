@@ -67,25 +67,6 @@ if __name__ == "__main__":
             dropout=0.15
         ),
     
-        # Model 4: Your original configuration (that achieved 75%)
-        DeepONetOperator(
-            device,
-            "DeepONet_Model2_random",
-            grid_size=GRID_SIZE,
-            n_sensors=3800,             # Your original sensor count
-            hidden_size=256,            # Your original hidden size
-            num_layers=6,               # Your original layers
-            activation='gelu',
-            lr=3e-4,                    # Your original LR
-            step_size=50,               # Your original step size
-            gamma=0.9,                  # Your original gamma
-            weight_decay=5e-6,          # Your original weight decay
-            epochs=600,                 # Your original epochs
-            sensor_strategy='random',
-            normalize_sensors=True,
-            dropout=0.03                # Your original dropout
-        ),
-        # Model 2: Physics-informed adaptive sensors
         DeepONetOperator(
             device,
             "DeepONet_Model1_chebyshev",
@@ -104,24 +85,6 @@ if __name__ == "__main__":
             dropout=0.15
         ),
     
-        # Model 4: Your original configuration (that achieved 75%)
-        DeepONetOperator(
-            device,
-            "DeepONet_Model2_chebyshev",
-            grid_size=GRID_SIZE,
-            n_sensors=3800,             # Your original sensor count
-            hidden_size=256,            # Your original hidden size
-            num_layers=6,               # Your original layers
-            activation='gelu',
-            lr=3e-4,                    # Your original LR
-            step_size=50,               # Your original step size
-            gamma=0.9,                  # Your original gamma
-            weight_decay=5e-6,          # Your original weight decay
-            epochs=600,                 # Your original epochs
-            sensor_strategy='chebyshev',
-            normalize_sensors=True,
-            dropout=0.03                # Your original dropout
-        ),
         # Model 2: Physics-informed adaptive sensors
         DeepONetOperator(
             device,
@@ -140,44 +103,6 @@ if __name__ == "__main__":
             normalize_sensors=True,
             dropout=0.15
         ),
-    
-        # Model 4: Your original configuration (that achieved 75%)
-        DeepONetOperator(
-            device,
-            "DeepONet_Model2_adaptive",
-            grid_size=GRID_SIZE,
-            n_sensors=200,             # Your original sensor count
-            hidden_size=256,            # Your original hidden size
-            num_layers=6,               # Your original layers
-            activation='gelu',
-            lr=3e-4,                    # Your original LR
-            step_size=50,               # Your original step size
-            gamma=0.9,                  # Your original gamma
-            weight_decay=5e-6,          # Your original weight decay
-            epochs=600,                 # Your original epochs
-            sensor_strategy='adaptive',
-            normalize_sensors=True,
-            dropout=0.03                # Your original dropout
-        ),
-                # Model 2: Physics-informed adaptive sensors
-        DeepONetOperator(
-            device,
-            "DeepONet_Model1_adaptive",
-            grid_size=GRID_SIZE,
-            n_sensors=200,             # More sensors with adaptive
-            hidden_size=280,            # Good capacity
-            num_layers=6,               # Moderate depth
-            activation='gelu',
-            lr=3e-4,                    # Standard LR
-            step_size=50,
-            gamma=0.85,
-            weight_decay=5e-5,
-            epochs=800,
-            sensor_strategy='uniform',  # Physics-informed placement
-            normalize_sensors=True,
-            dropout=0.15
-        ),
-    
         # Model 4: Your original configuration (that achieved 75%)
         DeepONetOperator(
             device,
