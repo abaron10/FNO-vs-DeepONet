@@ -23,7 +23,6 @@ class BaseOperator(ABC):
 
     @abstractmethod
     def get_model_info(self) -> Dict[str, Any]:
-        """Return model architecture information"""
         ...
 
     @abstractmethod
@@ -31,7 +30,7 @@ class BaseOperator(ABC):
                     val_loader: torch.utils.data.DataLoader = None) -> Union[float, Dict[str, float]]:
         ...
 
-    # ----------------------------------------------------
+                                                          
     def eval(self, loader, metrics: Dict[str, callable]):
         self.model.eval()
         agg = {k: 0.0 for k in metrics}
@@ -44,5 +43,4 @@ class BaseOperator(ABC):
         return {k: v / len(loader) for k, v in agg.items()}
 
     def count_parameters(self):
-        """Count trainable parameters"""
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)

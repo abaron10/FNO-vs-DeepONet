@@ -1,49 +1,45 @@
-# models/kolmogorov.py
+                      
 import numpy as np
 import torch
 from kan import KAN
 from typing import Dict, Any
-from models.base_operator import BaseOperator          # ajusta si la ruta cambia
+from models.base_operator import BaseOperator                                    
 
 
 class PyKANOperator(BaseOperator):
-    """
-    Adaptador Kolmogorov-Arnold Network.
-    Desactiva el checkpoint interno de pykan y muestra progreso.
-    """
 
     def __init__(
         self,
         device: torch.device,
-        hidden_neurons: int = 80,     # ↓ menos ancho para que no tarde tanto
+        hidden_neurons: int = 80,                                            
         lr: float = 1e-3,
-        log_every: int = 5,           # imprime cada 5 batches
+        log_every: int = 5,                                   
     ):
         super().__init__(device)
         self.hidden_neurons = hidden_neurons
         self.lr = lr
         self.log_every = log_every
 
-    # ------------------------------------------------------------------ #
+                                                                          
     def setup(self, data_info: Dict[str, Any]):
-        N = data_info["coords"].shape[0]          # GRID²
+        N = data_info["coords"].shape[0]                 
         self.grid_size = int(np.sqrt(N))
 
         self.model = KAN(
             width=[N, self.hidden_neurons, N],
-            grid=5,    # malla interna del KAN
+            grid=5,                           
             k=3
         ).to(self.device)
 
-        # ✂️  Desactivar cualquier intento de guardar checkpoints
+                                                                 
         self.model.ckpt_path = None
         self.model.save_every = 0
-        self.model.save = lambda *_, **__: None   # sobreescribe save()
+        self.model.save = lambda *_, **__: None                        
 
         self.opt = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         self.loss_fn = torch.nn.MSELoss()
 
-    # ------------------------------------------------------------------ #
+                                                                          
     def train_epoch(self, loader: torch.utils.data.DataLoader) -> float:
         self.model.train()
         running = 0.0
@@ -67,19 +63,19 @@ class PyKANOperator(BaseOperator):
 
         return running / len(loader)
 
-    # ------------------------------------------------------------------ #
+                                                                          
     @torch.no_grad()
     def predict(self, batch):
         self.model.eval()
 
         B = batch["x"].shape[0]
         x_flat = batch["x"].view(B, -1).to(self.device)
-        out = self.model(x_flat)                   # [B, N]
+        out = self.model(x_flat)                           
 
         G = self.grid_size
         return out.view(B, 1, G, G)
 
-    # ------------------------------------------------------------------ #
+                                                                          
     def get_model_info(self):
         n_params = sum(p.numel() for p in self.model.parameters()
                        if p.requires_grad)

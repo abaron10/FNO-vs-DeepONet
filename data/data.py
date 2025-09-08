@@ -5,12 +5,11 @@ from dataclasses import dataclass
 from neuralop.data.datasets import load_darcy_flow_small
 
 class ResolutionAdaptiveDataLoader:
-    """Wrapper to adapt data resolution on-the-fly."""
     
     def __init__(self, base_loader, target_grid_size):
         self.base_loader = base_loader
         self.target_grid_size = target_grid_size
-        # infer original from first batch
+                                         
         first_batch = next(iter(base_loader))
         self.original_grid_size = first_batch["x"].shape[-1]
     
@@ -24,7 +23,7 @@ class ResolutionAdaptiveDataLoader:
         return len(self.base_loader)
     
     def _resize_batch(self, batch):
-        x, y = batch["x"], batch["y"]  # [B,1,H,W]
+        x, y = batch["x"], batch["y"]             
         x_resized = F.interpolate(
             x,
             size=(self.target_grid_size, self.target_grid_size),
@@ -46,10 +45,10 @@ class DataModule:
     n_train: int = 100
     batch: int = 4
     n_test: int = 50
-    n_sensors: int = 100  # for DeepONet
+    n_sensors: int = 100                
 
     def setup(self):
-        # decide test resolutions
+                                 
         test_res = [16]
         if self.grid != 16:
             test_res.append(self.grid)
@@ -62,16 +61,16 @@ class DataModule:
             test_batch_sizes=[self.batch] * len(test_res),
         )
 
-        # training loader at desired grid
+                                         
         self.train = ResolutionAdaptiveDataLoader(tr_loader, self.grid)
 
-        # test loader: native if available, else adapt 16→grid
+                                                              
         if self.grid in te_loaders:
             self.test = te_loaders[self.grid]
         else:
             self.test = ResolutionAdaptiveDataLoader(te_loaders[16], self.grid)
 
-        # compute κ(x) normalization stats on training set
+                                                          
         k_list = []
         for batch in self.train:
             k_list.append(batch["x"])
@@ -79,7 +78,7 @@ class DataModule:
         k_mean = k_all.mean().item()
         k_std  = k_all.std().item()
 
-        # sensors & coords for DeepONet
+                                       
         rng = np.random.default_rng(42)
         N = self.grid ** 2
         actual_n = min(self.n_sensors, N)

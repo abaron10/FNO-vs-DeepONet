@@ -1,17 +1,4 @@
-"""
-Enhanced DeepONet Results Matplotlib Visualizer
-Creates comprehensive visualizations for DeepONet training results
 
-Key features:
-- Training and validation curves
-- Individual accuracy plots for each model
-- Architecture analysis (sensors, hidden size, layers)
-- Model efficiency and comparison charts
-- Sensor strategy analysis
-- Professional styling with detailed insights
-
-Designed for DeepONet models with Li et al. accuracy calculation
-"""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,7 +10,6 @@ import glob
 import os
 
 class DeepONetChartCreator:
-    """Creates professional matplotlib charts from DeepONet training results"""
     
     def __init__(self, style='seaborn-v0_8', figsize=(12, 8)):
         self.figsize = figsize
@@ -33,13 +19,13 @@ class DeepONetChartCreator:
             '#ff9896', '#98df8a', '#c5b0d5', '#c49c94', '#f7b6d3'
         ]
         
-        # Set matplotlib style
+                              
         try:
             plt.style.use(style)
         except:
             plt.style.use('default')
         
-        # Configure matplotlib for DeepONet visualizations
+                                                          
         plt.rcParams['figure.figsize'] = figsize
         plt.rcParams['font.size'] = 11
         plt.rcParams['axes.labelsize'] = 12
@@ -49,19 +35,17 @@ class DeepONetChartCreator:
         plt.rcParams['lines.linewidth'] = 2
 
     def load_results(self, json_path):
-        """Load results from JSON file"""
         with open(json_path, 'r') as f:
             return json.load(f)
 
     def create_training_curves(self, results_data, save_path=None, create_individual=True):
-        """Create training and validation curves for DeepONet models"""
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
         
-        # Get data
+                  
         training_history = results_data.get('training_history', {})
         accuracy_history = results_data.get('accuracy_history', {})
         
-        # Plot 1: Loss curves
+                             
         if training_history:
             for i, (model_name, loss_values) in enumerate(training_history.items()):
                 color = self.colors[i % len(self.colors)]
@@ -78,13 +62,13 @@ class DeepONetChartCreator:
             ax1.grid(True, alpha=0.3)
             ax1.legend(fontsize=9)
 
-        # Plot 2: Combined accuracy overview
+                                            
         if accuracy_history:
             for i, (model_name, acc_data) in enumerate(accuracy_history.items()):
                 color = self.colors[i % len(self.colors)]
                 clean_name = model_name.replace('_64x64', '').replace('DeepONet', 'DON')
                 
-                # Plot validation accuracy for clarity
+                                                      
                 val_acc = acc_data.get('validation', [])
                 if val_acc:
                     epochs = range(1, len(val_acc) + 1)
@@ -97,7 +81,7 @@ class DeepONetChartCreator:
             ax2.grid(True, alpha=0.3)
             ax2.legend(fontsize=9)
             
-            # Set reasonable y-axis limits
+                                          
             if accuracy_history:
                 all_vals = []
                 for acc_data in accuracy_history.values():
@@ -113,7 +97,7 @@ class DeepONetChartCreator:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
             print(f"📊 DeepONet training curves saved: {save_path}")
         
-        # Create individual accuracy plots if requested
+                                                       
         if create_individual and accuracy_history:
             output_dir = Path(save_path).parent if save_path else Path('.')
             self.create_individual_accuracy_plots(accuracy_history, output_dir)
@@ -121,7 +105,6 @@ class DeepONetChartCreator:
         return fig
 
     def create_individual_accuracy_plots(self, accuracy_history, output_dir):
-        """Create individual accuracy plots for each DeepONet model"""
         output_path = Path(output_dir)
         accuracy_dir = output_path / 'individual_accuracy_plots'
         accuracy_dir.mkdir(exist_ok=True)
@@ -131,28 +114,28 @@ class DeepONetChartCreator:
         for i, (model_name, acc_data) in enumerate(accuracy_history.items()):
             clean_name = model_name.replace('_64x64', '').replace('DeepONet', 'DON')
             
-            # Create figure for this model
+                                          
             fig, ax = plt.subplots(1, 1, figsize=(10, 6))
             
-            # Get data
+                      
             train_acc = acc_data.get('train', [])
             val_acc = acc_data.get('validation', [])
             
-            # Plot training accuracy
+                                    
             if train_acc:
                 epochs = range(1, len(train_acc) + 1)
                 ax.plot(epochs, train_acc, color='#2E86AB', linewidth=3, 
                        label='Training', alpha=0.8, marker='o', markersize=2, 
                        markevery=max(1, len(epochs)//25))
             
-            # Plot validation accuracy
+                                      
             if val_acc:
                 epochs = range(1, len(val_acc) + 1)
                 ax.plot(epochs, val_acc, color='#A23B72', linewidth=3, 
                        label='Validation', alpha=0.8, linestyle='--',
                        marker='s', markersize=2, markevery=max(1, len(epochs)//25))
             
-            # Styling
+                     
             ax.set_xlabel('Epoch', fontsize=12, fontweight='bold')
             ax.set_ylabel('Accuracy (%)', fontsize=12, fontweight='bold')
             ax.set_title(f'DeepONet Training Progress: {clean_name}', 
@@ -160,14 +143,14 @@ class DeepONetChartCreator:
             ax.grid(True, alpha=0.3)
             ax.legend(fontsize=11, loc='lower right')
             
-            # Set y-axis limits based on data
+                                             
             all_values = train_acc + val_acc
             if all_values:
                 min_val = max(60, min(all_values) - 3)
                 max_val = min(100, max(all_values) + 2)
                 ax.set_ylim([min_val, max_val])
             
-            # Add final accuracy annotation
+                                           
             if val_acc:
                 final_val_acc = val_acc[-1]
                 ax.annotate(f'Final: {final_val_acc:.2f}%', 
@@ -176,7 +159,7 @@ class DeepONetChartCreator:
                            bbox=dict(boxstyle='round,pad=0.4', fc='lightgreen', alpha=0.8),
                            fontsize=11, fontweight='bold')
             
-            # Add trend line for longer training
+                                                
             if len(val_acc) > 30:
                 window = min(20, len(val_acc)//5)
                 trend = pd.Series(val_acc).rolling(window=window, center=True).mean()
@@ -186,7 +169,7 @@ class DeepONetChartCreator:
             
             plt.tight_layout()
             
-            # Save individual plot
+                                  
             filename = f"accuracy_{clean_name.replace(' ', '_').lower()}.png"
             save_path = accuracy_dir / filename
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
@@ -194,17 +177,16 @@ class DeepONetChartCreator:
             
             print(f"   ✓ {clean_name}: {filename}")
         
-        # Create a combined grid view
+                                     
         self.create_accuracy_grid_view(accuracy_history, accuracy_dir)
 
     def create_accuracy_grid_view(self, accuracy_history, output_dir):
-        """Create a grid view of all DeepONet accuracy plots"""
         n_models = len(accuracy_history)
         if n_models == 0:
             return
         
-        # Calculate grid dimensions
-        cols = min(3, n_models)  # Up to 3 columns for DeepONet
+                                   
+        cols = min(3, n_models)                                
         rows = (n_models + cols - 1) // cols
         
         fig, axes = plt.subplots(rows, cols, figsize=(5*cols, 4*rows))
@@ -219,7 +201,7 @@ class DeepONetChartCreator:
             ax = axes[idx]
             clean_name = model_name.replace('_64x64', '').replace('DeepONet', 'DON')
             
-            # Plot data
+                       
             train_acc = acc_data.get('train', [])
             val_acc = acc_data.get('validation', [])
             
@@ -233,21 +215,21 @@ class DeepONetChartCreator:
                 ax.plot(epochs, val_acc, color='#A23B72', linewidth=2, 
                        label='Val', alpha=0.8, linestyle='--')
             
-            # Styling
+                     
             ax.set_xlabel('Epoch', fontsize=10)
             ax.set_ylabel('Accuracy (%)', fontsize=10)
             ax.set_title(clean_name, fontsize=11, fontweight='bold')
             ax.grid(True, alpha=0.3)
             ax.legend(fontsize=8)
             
-            # Set reasonable y-axis
+                                   
             all_vals = train_acc + val_acc
             if all_vals:
                 min_val = max(60, min(all_vals) - 2)
                 max_val = min(100, max(all_vals) + 1)
                 ax.set_ylim([min_val, max_val])
         
-        # Remove empty subplots
+                               
         for idx in range(n_models, len(axes)):
             fig.delaxes(axes[idx])
         
@@ -260,7 +242,6 @@ class DeepONetChartCreator:
         print(f"   ✓ Grid view: accuracy_grid_view.png")
 
     def create_individual_charts(self, results_data, output_dir):
-        """Create individual chart files for HTML display"""
         models = results_data.get('models', [])
         if not models:
             return {}
@@ -268,14 +249,14 @@ class DeepONetChartCreator:
         output_path = Path(output_dir)
         chart_files = {}
         
-        # Extract data
+                      
         names = [m['name'].replace('_64x64', '').replace('DeepONet', 'DON') for m in models]
         accuracies = [m['metrics']['accuracy'] for m in models]
         parameters = [m['model_info']['parameters'] for m in models]
         training_times = [m['metrics'].get('wall_sec', 0) / 60 for m in models]
         rel_l2_errors = [m['metrics']['relative_l2'] for m in models]
         
-        # 1. Training Time vs Accuracy
+                                      
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
         scatter = ax.scatter(training_times, accuracies, c=range(len(names)), 
                            cmap='viridis', s=200, alpha=0.8, edgecolors='black', linewidth=2)
@@ -284,7 +265,7 @@ class DeepONetChartCreator:
         ax.set_title('DeepONet: Training Time vs Accuracy', fontsize=14, fontweight='bold')
         ax.grid(True, alpha=0.3)
         
-        # Add model labels
+                          
         for i, (time, acc, name) in enumerate(zip(training_times, accuracies, names)):
             ax.annotate(name, (time, acc), xytext=(8, 8), 
                        textcoords='offset points', fontsize=10, fontweight='bold',
@@ -296,7 +277,7 @@ class DeepONetChartCreator:
         chart_files['training_time_vs_accuracy'] = time_vs_acc_path
         plt.close()
         
-        # 2. Relative L2 Error Chart
+                                    
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
         bars = ax.bar(range(len(names)), rel_l2_errors, color=self.colors[:len(names)], 
                      alpha=0.8, edgecolor='black', linewidth=1)
@@ -307,7 +288,7 @@ class DeepONetChartCreator:
         ax.set_xticklabels(names, rotation=45, ha='right', fontweight='bold')
         ax.grid(True, alpha=0.3, axis='y')
         
-        # Add error labels on bars
+                                  
         for bar, err in zip(bars, rel_l2_errors):
             height = bar.get_height()
             ax.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
@@ -319,7 +300,7 @@ class DeepONetChartCreator:
         chart_files['relative_l2_error'] = rel_l2_path
         plt.close()
         
-        # 3. Model Efficiency Chart
+                                   
         fig, ax = plt.subplots(1, 1, figsize=(10, 6))
         efficiency = [acc / (param / 1000) for acc, param in zip(accuracies, parameters)]
         bars = ax.bar(range(len(names)), efficiency, color=self.colors[:len(names)], 
@@ -331,7 +312,7 @@ class DeepONetChartCreator:
         ax.set_xticklabels(names, rotation=45, ha='right', fontweight='bold')
         ax.grid(True, alpha=0.3, axis='y')
         
-        # Add efficiency labels on bars
+                                       
         for bar, eff in zip(bars, efficiency):
             height = bar.get_height()
             ax.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
@@ -346,12 +327,11 @@ class DeepONetChartCreator:
         return chart_files
 
     def create_model_comparison(self, results_data, save_path=None):
-        """Create comprehensive DeepONet model comparison chart"""
         models = results_data.get('models', [])
         if not models:
             return None
             
-        # Extract data
+                      
         names = [m['name'].replace('_64x64', '').replace('DeepONet', 'DON') for m in models]
         accuracies = [m['metrics']['accuracy'] for m in models]
         parameters = [m['model_info']['parameters'] for m in models]
@@ -360,7 +340,7 @@ class DeepONetChartCreator:
         
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
         
-        # Plot 1: Final Accuracy
+                                
         bars = ax1.bar(range(len(names)), accuracies, color=self.colors[:len(names)], 
                       alpha=0.8, edgecolor='black', linewidth=1)
         ax1.set_xlabel('DeepONet Models', fontweight='bold')
@@ -370,13 +350,13 @@ class DeepONetChartCreator:
         ax1.set_xticklabels(names, rotation=45, ha='right')
         ax1.grid(True, alpha=0.3)
         
-        # Add accuracy labels
+                             
         for bar, acc in zip(bars, accuracies):
             height = bar.get_height()
             ax1.text(bar.get_x() + bar.get_width()/2., height + 0.5,
                    f'{acc:.1f}%', ha='center', va='bottom', fontweight='bold')
         
-        # Plot 2: Parameters vs Accuracy
+                                        
         scatter2 = ax2.scatter(parameters, accuracies, c=range(len(names)), 
                               cmap='viridis', s=150, alpha=0.7, edgecolors='black')
         ax2.set_xlabel('Number of Parameters', fontweight='bold')
@@ -384,12 +364,12 @@ class DeepONetChartCreator:
         ax2.set_title('DeepONet Parameters vs Accuracy', fontweight='bold')
         ax2.grid(True, alpha=0.3)
         
-        # Add model labels
+                          
         for i, (param, acc, name) in enumerate(zip(parameters, accuracies, names)):
             ax2.annotate(name, (param, acc), xytext=(5, 5), 
                         textcoords='offset points', fontsize=8)
         
-        # Plot 3: Training Time vs Accuracy
+                                           
         scatter3 = ax3.scatter(training_times, accuracies, c=range(len(names)), 
                               cmap='viridis', s=150, alpha=0.7, edgecolors='black')
         ax3.set_xlabel('Training Time (minutes)', fontweight='bold')
@@ -397,12 +377,12 @@ class DeepONetChartCreator:
         ax3.set_title('DeepONet Training Time vs Accuracy', fontweight='bold')
         ax3.grid(True, alpha=0.3)
         
-        # Add model labels
+                          
         for i, (time, acc, name) in enumerate(zip(training_times, accuracies, names)):
             ax3.annotate(name, (time, acc), xytext=(5, 5), 
                         textcoords='offset points', fontsize=8)
         
-        # Plot 4: Relative L2 Error
+                                   
         bars2 = ax4.bar(range(len(names)), rel_l2_errors, color=self.colors[:len(names)], 
                        alpha=0.8, edgecolor='black', linewidth=1)
         ax4.set_xlabel('DeepONet Models', fontweight='bold')
@@ -412,7 +392,7 @@ class DeepONetChartCreator:
         ax4.set_xticklabels(names, rotation=45, ha='right')
         ax4.grid(True, alpha=0.3)
         
-        # Add error labels
+                          
         for bar, err in zip(bars2, rel_l2_errors):
             height = bar.get_height()
             ax4.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
@@ -427,10 +407,9 @@ class DeepONetChartCreator:
         return fig
 
     def create_architecture_analysis(self, results_data, save_path=None):
-        """Create DeepONet architecture parameter analysis"""
         models = results_data.get('models', [])
         
-        # Extract DeepONet architecture data
+                                            
         arch_data = []
         for model in models:
             if 'architecture' in model['model_info']:
@@ -454,7 +433,7 @@ class DeepONetChartCreator:
         
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
         
-        # Plot 1: Number of Sensors vs Accuracy
+                                               
         scatter1 = ax1.scatter(df['n_sensors'], df['accuracy'], c=df['parameters'], 
                              cmap='viridis', s=150, alpha=0.7, edgecolors='black')
         ax1.set_xlabel('Number of Sensors', fontweight='bold')
@@ -464,8 +443,8 @@ class DeepONetChartCreator:
         cbar1 = plt.colorbar(scatter1, ax=ax1)
         cbar1.set_label('Parameters', fontweight='bold')
         
-        # Plot 2: Hidden Size vs Accuracy
-        # Color by sensor strategy
+                                         
+                                  
         strategies = df['sensor_strategy'].unique()
         strategy_colors = {strategy: self.colors[i] for i, strategy in enumerate(strategies)}
         colors = [strategy_colors[strategy] for strategy in df['sensor_strategy']]
@@ -477,12 +456,12 @@ class DeepONetChartCreator:
         ax2.set_title('DeepONet: Hidden Size vs Accuracy', fontweight='bold')
         ax2.grid(True, alpha=0.3)
         
-        # Add legend for sensor strategies
+                                          
         for strategy, color in strategy_colors.items():
             ax2.scatter([], [], c=[color], s=100, label=strategy, alpha=0.7, edgecolors='black')
         ax2.legend(title='Sensor Strategy', fontsize=8)
         
-        # Plot 3: Model Efficiency by Architecture
+                                                  
         efficiency = df['accuracy'] / (df['parameters'] / 1000)
         bars = ax3.bar(range(len(df)), efficiency, color=self.colors[:len(df)], alpha=0.8)
         ax3.set_xlabel('DeepONet Models', fontweight='bold')
@@ -492,7 +471,7 @@ class DeepONetChartCreator:
         ax3.set_xticklabels(df['name'], rotation=45, ha='right')
         ax3.grid(True, alpha=0.3)
         
-        # Plot 4: Architecture Space Overview (Sensors vs Hidden Size)
+                                                                      
         scatter4 = ax4.scatter(df['n_sensors'], df['hidden_size'], c=df['accuracy'], 
                               s=df['parameters']/100, cmap='RdYlGn', alpha=0.7, edgecolors='black')
         ax4.set_xlabel('Number of Sensors', fontweight='bold')
@@ -502,7 +481,7 @@ class DeepONetChartCreator:
         cbar4 = plt.colorbar(scatter4, ax=ax4)
         cbar4.set_label('Accuracy (%)', fontweight='bold')
         
-        # Add model labels for all plots
+                                        
         for _, row in df.iterrows():
             ax1.annotate(row['name'], (row['n_sensors'], row['accuracy']), 
                         xytext=(3, 3), textcoords='offset points', fontsize=8)
@@ -520,10 +499,9 @@ class DeepONetChartCreator:
         return fig
 
     def create_architecture_space_chart(self, results_data, save_path=None):
-        """Create individual DeepONet Architecture Space chart"""
         models = results_data.get('models', [])
         
-        # Extract DeepONet architecture data
+                                            
         arch_data = []
         for model in models:
             if 'architecture' in model['model_info']:
@@ -542,10 +520,10 @@ class DeepONetChartCreator:
         
         df = pd.DataFrame(arch_data)
         
-        # Create individual figure for Architecture Space
+                                                         
         fig, ax = plt.subplots(1, 1, figsize=(10, 8))
         
-        # Architecture Space: Sensors vs Hidden Size
+                                                    
         scatter = ax.scatter(df['n_sensors'], df['hidden_size'], c=df['accuracy'], 
                            s=df['parameters']/50, cmap='RdYlGn', alpha=0.7, 
                            edgecolors='black', linewidth=1.5)
@@ -556,28 +534,28 @@ class DeepONetChartCreator:
                     fontsize=16, fontweight='bold', pad=20)
         ax.grid(True, alpha=0.3)
         
-        # Enhanced colorbar
+                           
         cbar = plt.colorbar(scatter, ax=ax, shrink=0.8)
         cbar.set_label('Accuracy (%)', fontsize=12, fontweight='bold')
         cbar.ax.tick_params(labelsize=10)
         
-        # Add model labels with better positioning
+                                                  
         for _, row in df.iterrows():
             ax.annotate(row['name'], (row['n_sensors'], row['hidden_size']), 
                        xytext=(8, 8), textcoords='offset points', fontsize=10,
                        bbox=dict(boxstyle='round,pad=0.3', fc='white', alpha=0.8),
                        fontweight='bold')
         
-        # Add legend for sensor strategies
+                                          
         strategies = df['sensor_strategy'].unique()
         if len(strategies) > 1:
-            # Add small legend showing sensor strategies
+                                                        
             strategy_text = f"Sensor Strategies: {', '.join(strategies)}"
             ax.text(0.02, 0.98, strategy_text, transform=ax.transAxes, 
                    fontsize=9, verticalalignment='top',
                    bbox=dict(boxstyle='round,pad=0.5', fc='lightblue', alpha=0.7))
         
-        # Set reasonable margins
+                                
         x_margin = (df['n_sensors'].max() - df['n_sensors'].min()) * 0.1
         y_margin = (df['hidden_size'].max() - df['hidden_size'].min()) * 0.1
         ax.set_xlim(df['n_sensors'].min() - x_margin, df['n_sensors'].max() + x_margin)
@@ -592,10 +570,9 @@ class DeepONetChartCreator:
         return fig
 
     def create_sensor_strategy_analysis(self, results_data, save_path=None):
-        """Create sensor strategy comparison chart"""
         models = results_data.get('models', [])
         
-        # Group by sensor strategy
+                                  
         strategy_data = {}
         for model in models:
             if 'architecture' in model['model_info']:
@@ -615,7 +592,7 @@ class DeepONetChartCreator:
         
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
         
-        # Plot 1: Accuracy by Sensor Strategy
+                                             
         strategies = list(strategy_data.keys())
         strategy_accuracies = []
         strategy_colors = []
@@ -625,7 +602,7 @@ class DeepONetChartCreator:
             strategy_accuracies.append(accuracies)
             strategy_colors.append(self.colors[i % len(self.colors)])
         
-        # Box plot
+                  
         bp = ax1.boxplot(strategy_accuracies, labels=strategies, patch_artist=True)
         for patch, color in zip(bp['boxes'], strategy_colors):
             patch.set_facecolor(color)
@@ -636,7 +613,7 @@ class DeepONetChartCreator:
         ax1.set_title('DeepONet Accuracy by Sensor Strategy', fontweight='bold')
         ax1.grid(True, alpha=0.3)
         
-        # Plot 2: Sensors vs Accuracy colored by strategy
+                                                         
         for i, (strategy, models_list) in enumerate(strategy_data.items()):
             sensors = [model['n_sensors'] for model in models_list]
             accuracies = [model['accuracy'] for model in models_list]
@@ -645,7 +622,7 @@ class DeepONetChartCreator:
             ax2.scatter(sensors, accuracies, c=[color]*len(sensors), 
                        label=strategy, s=120, alpha=0.7, edgecolors='black')
             
-            # Add model labels
+                              
             for model in models_list:
                 ax2.annotate(model['name'], (model['n_sensors'], model['accuracy']), 
                            xytext=(3, 3), textcoords='offset points', fontsize=8)
@@ -665,7 +642,6 @@ class DeepONetChartCreator:
         return fig
 
     def create_summary_table(self, results_data, save_path=None):
-        """Create and save DeepONet summary table"""
         models = results_data.get('models', [])
         
         data = []
@@ -696,26 +672,14 @@ class DeepONetChartCreator:
 
 
 def create_deeponet_charts(json_file_path, output_dir='./deeponet_charts', show_plots=False, create_individual_accuracy=True):
-    """
-    Main function to create all DeepONet charts from JSON results file
-    
-    Args:
-        json_file_path: Path to your JSON results file
-        output_dir: Directory to save charts
-        show_plots: Whether to display plots
-        create_individual_accuracy: Whether to create individual accuracy plots
-    
-    Returns:
-        dict: Paths to all created files
-    """
-    # Create output directory
+                             
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
     
-    # Initialize chart creator
+                              
     chart_creator = DeepONetChartCreator()
     
-    # Load results
+                  
     try:
         results = chart_creator.load_results(json_file_path)
     except FileNotFoundError:
@@ -730,7 +694,7 @@ def create_deeponet_charts(json_file_path, output_dir='./deeponet_charts', show_
     
     created_files = {}
     
-    # 1. Training curves (matches FNO naming)
+                                             
     curves_path = output_path / "training_curves.png"
     fig1 = chart_creator.create_training_curves(results, save_path=curves_path, create_individual=create_individual_accuracy)
     if fig1:
@@ -740,11 +704,11 @@ def create_deeponet_charts(json_file_path, output_dir='./deeponet_charts', show_
         else:
             plt.close(fig1)
     
-    # 2. Individual charts (matches FNO naming)
+                                               
     individual_charts = chart_creator.create_individual_charts(results, output_path)
     created_files.update(individual_charts)
     
-    # 3. Full comparison chart (matches FNO naming)
+                                                   
     comparison_path = output_path / "full_model_comparison.png"
     fig2 = chart_creator.create_model_comparison(results, save_path=comparison_path)
     if fig2:
@@ -754,7 +718,7 @@ def create_deeponet_charts(json_file_path, output_dir='./deeponet_charts', show_
         else:
             plt.close(fig2)
     
-    # 4. Architecture analysis (matches FNO naming)
+                                                   
     arch_path = output_path / "architecture_analysis.png"
     fig3 = chart_creator.create_architecture_analysis(results, save_path=arch_path)
     if fig3:
@@ -764,7 +728,7 @@ def create_deeponet_charts(json_file_path, output_dir='./deeponet_charts', show_
         else:
             plt.close(fig3)
     
-    # 5. Sensor strategy analysis (DeepONet specific)
+                                                     
     sensor_path = output_path / "sensor_strategy_analysis.png"
     fig4 = chart_creator.create_sensor_strategy_analysis(results, save_path=sensor_path)
     if fig4:
@@ -774,7 +738,7 @@ def create_deeponet_charts(json_file_path, output_dir='./deeponet_charts', show_
         else:
             plt.close(fig4)
     
-    # 6. Architecture space chart (individual)
+                                              
     arch_space_path = output_path / "architecture_space.png"
     fig5 = chart_creator.create_architecture_space_chart(results, save_path=arch_space_path)
     if fig5:
@@ -784,13 +748,13 @@ def create_deeponet_charts(json_file_path, output_dir='./deeponet_charts', show_
         else:
             plt.close(fig5)
     
-    # 7. Summary table (matches FNO naming)
+                                           
     table_path = output_path / "summary_table.csv"
     summary_df = chart_creator.create_summary_table(results, save_path=table_path)
     if summary_df is not None:
         created_files['summary_table'] = table_path
     
-    # Print results summary
+                           
     models = results.get('models', [])
     if models:
         best_model = max(models, key=lambda x: x['metrics']['accuracy'])
@@ -809,14 +773,11 @@ def create_deeponet_charts(json_file_path, output_dir='./deeponet_charts', show_
 
 
 def create_charts_from_latest_deeponet_results(results_dir='.', output_dir='./deeponet_charts'):
-    """
-    Create charts from the most recent DeepONet results file
-    """
-    # Find the most recent results file
+                                       
     pattern = os.path.join(results_dir, 'results_deeponet_*.json')
     results_files = glob.glob(pattern)
     
-    # Also look for benchmark_results.json
+                                          
     benchmark_file = os.path.join(results_dir, 'benchmark_results.json')
     if os.path.exists(benchmark_file):
         results_files.append(benchmark_file)
@@ -826,7 +787,7 @@ def create_charts_from_latest_deeponet_results(results_dir='.', output_dir='./de
         print("   Looking for files matching: results_deeponet_*.json or benchmark_results.json")
         return None
     
-    # Get the most recent file
+                              
     latest_file = max(results_files, key=os.path.getctime)
     print(f"📊 Using most recent DeepONet results: {os.path.basename(latest_file)}")
     
@@ -834,16 +795,13 @@ def create_charts_from_latest_deeponet_results(results_dir='.', output_dir='./de
 
 
 def analyze_deeponet_results(json_file_path, output_dir='./deeponet_analysis'):
-    """
-    Convenience function to analyze DeepONet results
-    """
     chart_creator = DeepONetChartCreator(figsize=(14, 8))
     
-    # Create output directory
+                             
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
     
-    # Load and analyze results
+                              
     try:
         results = chart_creator.load_results(json_file_path)
     except Exception as e:
@@ -852,10 +810,10 @@ def analyze_deeponet_results(json_file_path, output_dir='./deeponet_analysis'):
     
     print(f"🔬 Analyzing DeepONet results from: {json_file_path}")
     
-    # Create all charts
+                       
     created_files = create_deeponet_charts(json_file_path, output_dir, create_individual_accuracy=True)
     
-    # Create summary table
+                          
     summary_df = chart_creator.create_summary_table(results)
     
     if summary_df is not None:
@@ -869,31 +827,9 @@ def analyze_deeponet_results(json_file_path, output_dir='./deeponet_analysis'):
 
 
 def quick_deeponet_analysis(json_file_path='./results_deeponet_*.json', output_dir='./deeponet_charts'):
-    """
-    🚀 Quick function to create all DeepONet charts with the same structure as FNO
-    
-    Args:
-        json_file_path: Path to results file (or pattern to find latest)
-        output_dir: Where to save charts (default: ./deeponet_charts)
-    
-    Creates the same folder structure as FNO:
-        deeponet_charts/
-        ├── individual_accuracy_plots/
-        │   ├── accuracy_[model_name].png
-        │   └── accuracy_grid_view.png
-        ├── training_curves.png
-        ├── full_model_comparison.png
-        ├── architecture_analysis.png
-        ├── architecture_space.png              # NEW! Individual space chart
-        ├── model_efficiency.png
-        ├── relative_l2_error.png
-        ├── training_time_vs_accuracy.png
-        ├── sensor_strategy_analysis.png
-        └── summary_table.csv
-    """
     import glob
     
-    # If pattern provided, find the latest file
+                                               
     if '*' in json_file_path:
         files = glob.glob(json_file_path)
         if not files:
@@ -902,20 +838,20 @@ def quick_deeponet_analysis(json_file_path='./results_deeponet_*.json', output_d
         json_file_path = max(files, key=os.path.getctime)
         print(f"📊 Using latest DeepONet results: {os.path.basename(json_file_path)}")
     
-    # Create charts
+                   
     created_files = create_deeponet_charts(json_file_path, output_dir, create_individual_accuracy=True)
     
     if created_files:
         print(f"\n✅ DeepONet charts created successfully in: {output_dir}")
         print(f"📁 Structure matches your FNO charts format!")
         
-        # Show key files created
+                                
         key_files = ['training_curves', 'full_model_comparison', 'architecture_analysis', 'model_efficiency']
         for key in key_files:
             if key in created_files:
                 print(f"   📊 {key}: {created_files[key].name}")
         
-        # Check individual plots
+                                
         individual_dir = Path(output_dir) / 'individual_accuracy_plots'
         if individual_dir.exists():
             individual_files = list(individual_dir.glob('*.png'))
@@ -963,7 +899,7 @@ if __name__ == "__main__":
     print("  • Model efficiency analysis")
     print("  • Professional styling with detailed insights")
     
-    # Demo run
+              
     print("\n🚀 Quick demo:")
     print("  quick_deeponet_analysis()  # This will create the same structure as your FNO!")
 
