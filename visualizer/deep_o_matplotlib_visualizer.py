@@ -666,7 +666,6 @@ class DeepONetChartCreator:
         
         if save_path:
             df.to_csv(save_path, index=False)
-            print(f"📋 DeepONet summary table saved: {save_path}")
         
         return df
 
@@ -683,14 +682,9 @@ def create_deeponet_charts(json_file_path, output_dir='./deeponet_charts', show_
     try:
         results = chart_creator.load_results(json_file_path)
     except FileNotFoundError:
-        print(f"❌ Error: Could not find file {json_file_path}")
         return None
     except json.JSONDecodeError:
-        print(f"❌ Error: Invalid JSON file {json_file_path}")
         return None
-    
-    print(f"🎨 Creating DeepONet charts from: {json_file_path}")
-    print(f"📁 Saving to: {output_path}")
     
     created_files = {}
     
@@ -767,7 +761,7 @@ def create_deeponet_charts(json_file_path, output_dir='./deeponet_charts', show_
         print(f"   Strategy: {arch.get('sensor_strategy', 'N/A')}")
         print(f"   Training Time: {best_model['metrics'].get('wall_sec', 0)/60:.1f} min")
     
-    print(f"\n✅ DeepONet charts created successfully!")
+    print(f"\nDeepONet charts created successfully!")
     
     return created_files
 
@@ -783,7 +777,7 @@ def create_charts_from_latest_deeponet_results(results_dir='.', output_dir='./de
         results_files.append(benchmark_file)
     
     if not results_files:
-        print(f"❌ No DeepONet results files found in {results_dir}")
+        print(f" No DeepONet results files found in {results_dir}")
         print("   Looking for files matching: results_deeponet_*.json or benchmark_results.json")
         return None
     
@@ -805,10 +799,10 @@ def analyze_deeponet_results(json_file_path, output_dir='./deeponet_analysis'):
     try:
         results = chart_creator.load_results(json_file_path)
     except Exception as e:
-        print(f"❌ Error loading results: {e}")
+        print(f"Error loading results: {e}")
         return None
     
-    print(f"🔬 Analyzing DeepONet results from: {json_file_path}")
+    print(f"Analyzing DeepONet results from: {json_file_path}")
     
                        
     created_files = create_deeponet_charts(json_file_path, output_dir, create_individual_accuracy=True)
@@ -817,7 +811,7 @@ def analyze_deeponet_results(json_file_path, output_dir='./deeponet_analysis'):
     summary_df = chart_creator.create_summary_table(results)
     
     if summary_df is not None:
-        print(f"\n📊 DeepONet Quick Analysis:")
+        print(f"\nDeepONet Quick Analysis:")
         print("="*80)
         display_cols = ['Model', 'Accuracy (%)', 'Sensors', 'Hidden Size', 'Parameters', 'Training Time (min)']
         available_cols = [col for col in display_cols if col in summary_df.columns]
@@ -833,23 +827,23 @@ def quick_deeponet_analysis(json_file_path='./results_deeponet_*.json', output_d
     if '*' in json_file_path:
         files = glob.glob(json_file_path)
         if not files:
-            print(f"❌ No files found matching: {json_file_path}")
+            print(f"No files found matching: {json_file_path}")
             return None
         json_file_path = max(files, key=os.path.getctime)
-        print(f"📊 Using latest DeepONet results: {os.path.basename(json_file_path)}")
+        print(f"Using latest DeepONet results: {os.path.basename(json_file_path)}")
     
                    
     created_files = create_deeponet_charts(json_file_path, output_dir, create_individual_accuracy=True)
     
     if created_files:
-        print(f"\n✅ DeepONet charts created successfully in: {output_dir}")
-        print(f"📁 Structure matches your FNO charts format!")
+        print(f"\nDeepONet charts created successfully in: {output_dir}")
+        print(f"Structure matches your FNO charts format!")
         
                                 
         key_files = ['training_curves', 'full_model_comparison', 'architecture_analysis', 'model_efficiency']
         for key in key_files:
             if key in created_files:
-                print(f"   📊 {key}: {created_files[key].name}")
+                print(f"   {key}: {created_files[key].name}")
         
                                 
         individual_dir = Path(output_dir) / 'individual_accuracy_plots'
@@ -861,46 +855,6 @@ def quick_deeponet_analysis(json_file_path='./results_deeponet_*.json', output_d
 
 
 if __name__ == "__main__":
-    print("🎨 Enhanced DeepONet Results Matplotlib Visualizer")
-    print("✨ Creates comprehensive visualizations for DeepONet training results!")
-    print("🧠 Specialized for Branch-Trunk Neural Networks with Li et al. accuracy")
-    print()
-    print("💡 Usage examples:")
-    print("  create_deeponet_charts('./results_deeponet_20250719_143000.json')")
-    print("  create_charts_from_latest_deeponet_results('./')")
-    print("  analyze_deeponet_results('./results_deeponet_latest.json')")
-    print("  quick_deeponet_analysis()  # 🚀 Easiest way - finds latest results!")
-    print()
-    print("📊 Creates the exact same structure as FNO charts:")
-    print("  deeponet_charts/")
-    print("  ├── individual_accuracy_plots/")
-    print("  │   ├── accuracy_optimized_deeponet_v2.png")
-    print("  │   ├── accuracy_high_density_deeponet.png")
-    print("  │   ├── accuracy_ultra_deeponet_95_target.png")
-    print("  │   ├── accuracy_balanced_deeponet.png")
-    print("  │   ├── accuracy_enhanced_init_deeponet.png")
-    print("  │   └── accuracy_grid_view.png")
-    print("  ├── architecture_analysis.png")
-    print("  ├── architecture_space.png              # NEW! Individual architecture space chart")
-    print("  ├── full_model_comparison.png")
-    print("  ├── model_efficiency.png")
-    print("  ├── relative_l2_error.png")
-    print("  ├── sensor_strategy_analysis.png")
-    print("  ├── summary_table.csv")
-    print("  ├── training_curves.png")
-    print("  └── training_time_vs_accuracy.png")
-    print()
-    print("🔬 Features:")
-    print("  • Training & validation curves")
-    print("  • Individual accuracy plots for each model")
-    print("  • Architecture analysis (sensors, hidden size, layers)")
-    print("  • Individual architecture space visualization")
-    print("  • Sensor strategy comparison")
-    print("  • Model efficiency analysis")
-    print("  • Professional styling with detailed insights")
-    
-              
-    print("\n🚀 Quick demo:")
     print("  quick_deeponet_analysis()  # This will create the same structure as your FNO!")
 
 quick_deeponet_analysis('./visualizer/benchmark_results.json')
