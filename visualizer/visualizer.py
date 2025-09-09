@@ -21,7 +21,7 @@ class Visualizer:
         
         fig, ax = plt.subplots(n, 4, figsize=(14, 4 * n))
         if n == 1:
-            ax = ax.reshape(1, -1)  # Ensure 2D array for indexing
+            ax = ax.reshape(1, -1)                                
             
         for i in range(n):
             im0 = ax[i, 0].imshow(x[i, 0], cmap="viridis")

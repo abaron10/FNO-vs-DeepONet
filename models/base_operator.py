@@ -4,7 +4,6 @@ from typing import Union, Dict, Any
 from typing import Dict, Any
 
 class BaseOperator(ABC):
-    """Every model wrapper must implement this interface."""
 
     def __init__(self, device: torch.device, grid_size: int = 16):
         self.device = device
@@ -24,7 +23,6 @@ class BaseOperator(ABC):
 
     @abstractmethod
     def get_model_info(self) -> Dict[str, Any]:
-        """Return model architecture information"""
         ...
 
     @abstractmethod
@@ -32,7 +30,7 @@ class BaseOperator(ABC):
                     val_loader: torch.utils.data.DataLoader = None) -> Union[float, Dict[str, float]]:
         ...
 
-    # ----------------------------------------------------
+                                                          
     def eval(self, loader, metrics: Dict[str, callable]):
         self.model.eval()
         agg = {k: 0.0 for k in metrics}
@@ -45,5 +43,4 @@ class BaseOperator(ABC):
         return {k: v / len(loader) for k, v in agg.items()}
 
     def count_parameters(self):
-        """Count trainable parameters"""
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)

@@ -1,32 +1,4 @@
 
-'''
-Inicialización
-
-1. Se definen n réplicas del FNO.
-2. A cada réplica se le asignas una semilla distinta para que sus pesos iniciales difieran.
-3. Setup individual
-    - Cada réplica construye su propia red (build_model()), optimizador (Adam) y scheduler (StepLR).
-4. Entrenamiento por réplicas
-    Por cada época, itero sobre las n réplicas:
-    a) Tomo la réplica i.
-    b) Le paso todo el train_loader y ejecuto su train_epoch().
-    c) Guardo su pérdida y su accuracy.
-
-    Al terminar, promedio esas métricas para tener la “pérdida/accuracy del ensemble” de esa época.
-
-5. Validación conjunta
-
-    Igual que en entrenamiento: valido cada réplica por separado, recojo sus pérdidas y accuracies, y las promedio para tener métricas globales.
-
-Inferencia (predict)
-
-Doy la misma entrada a cada réplica y obtengo n predicciones (tensores).
-
-Calculo la media elemento a elemento de esas n salidas.
-
-El tensor promedio es la predicción final del ensemble.
-
-'''
 
 
 
@@ -46,7 +18,7 @@ class SpectralConv2d(nn.Module):
         self.modes1 = modes1
         self.modes2 = modes2
         
-        self.scale = (1 / (in_channels * out_channels)) ** 0.5  # Add square root
+        self.scale = (1 / (in_channels * out_channels)) ** 0.5                   
         self.weights1 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, modes1, modes2, dtype=torch.cfloat))
         self.weights2 = nn.Parameter(self.scale * torch.rand(in_channels, out_channels, modes1, modes2, dtype=torch.cfloat))
 
@@ -63,7 +35,6 @@ class SpectralConv2d(nn.Module):
 
 
 class FNOBlock(nn.Module):
-    """FNO block optimized for small datasets"""
     def __init__(self, in_channels, out_channels, modes1, modes2, activation='gelu'):
         super().__init__()
         self.conv = SpectralConv2d(in_channels, out_channels, modes1, modes2)
@@ -81,7 +52,6 @@ class FNOBlock(nn.Module):
 
 
 class FNOOperator(BaseOperator):
-    """FNO optimized for very small datasets following Li et al. recommendations"""
 
     def __init__(self,
                  device, name="", grid_size=32,
@@ -90,19 +60,19 @@ class FNOOperator(BaseOperator):
                  n_layers=4,            
                  in_channels=1,         
                  
-                 # Training settings
+                                    
                  lr=1e-3,              
                  step_size=100,         
                  gamma=0.5,            
                  weight_decay=1e-4,    
                  epochs=500,
                  
-                 # Data augmentation
+                                    
                  use_augmentation=True,
                  
-                 # Architecture choices
+                                       
                  share_weights=False,    
-                 activation='gelu',):     # GELU as in paper
+                 activation='gelu',):                       
 
         super().__init__(device, grid_size)
         
@@ -120,7 +90,7 @@ class FNOOperator(BaseOperator):
         self.share_weights = share_weights
         self.activation = activation
         
-        # Early stopping
+                        
         self.best_val_loss = float('inf')
         self.patience = 75
         self.patience_counter = 0
@@ -129,23 +99,23 @@ class FNOOperator(BaseOperator):
         self.input_mean = torch.tensor(data_info["k_mean"], device=self.device)
         self.input_std = torch.tensor(data_info["k_std"], device=self.device)
         
-        # Ensure numerical stability
+                                    
         self.input_std = torch.clamp(self.input_std, min=1e-8)
         
-        # Grid has x,y coordinates
+                                  
         self.grid_channels = 2
         
-        # Build model architecture following Li et al.
+                                                      
         self.build_model()
         
-        # Optimizer
+                   
         self.optimizer = torch.optim.Adam(
             self.model.parameters(), 
             lr=self.lr, 
             weight_decay=self.weight_decay
         )
         
-        # Learning rate scheduler
+                                 
         self.scheduler = StepLR(
             self.optimizer, 
             step_size=self.step_size, 
@@ -153,38 +123,36 @@ class FNOOperator(BaseOperator):
         )
 
     def build_model(self):
-        """Build FNO model following Li et al. architecture"""
         layers = []
         
-        # Total input channels = data channels + grid channels
+                                                              
         total_in_channels = self.in_channels + self.grid_channels
         
-        # Lifting layer: lift from total input channels to width
+                                                                
         layers.append(nn.Conv2d(total_in_channels, self.width, 1))
         
-        # FNO blocks
+                    
         if self.share_weights:
-            # Share weights across layers (reduces parameters)
+                                                              
             fno_block = FNOBlock(self.width, self.width, self.modes, self.modes, self.activation)
             for _ in range(self.n_layers):
                 layers.append(fno_block)
         else:
-            # Independent weights for each layer
+                                                
             for _ in range(self.n_layers):
                 layers.append(FNOBlock(self.width, self.width, self.modes, self.modes, self.activation))
         
-        # Projection layers
+                           
         layers.append(nn.Conv2d(self.width, 128, 1))
         layers.append(self._get_activation())
         layers.append(nn.Conv2d(128, 1, 1))
         
         self.model = nn.Sequential(*layers).to(self.device)
         
-        # Initialize weights carefully
+                                      
         self._initialize_weights()
 
     def _get_activation(self):
-        """Get activation function"""
         if self.activation == 'gelu':
             return nn.GELU()
         elif self.activation == 'relu':
@@ -193,7 +161,6 @@ class FNOOperator(BaseOperator):
             return nn.Identity()
 
     def _initialize_weights(self):
-        """Initialize weights following best practices for small datasets"""
         for m in self.model.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.xavier_normal_(m.weight, gain=0.6)
@@ -205,7 +172,6 @@ class FNOOperator(BaseOperator):
                     nn.init.constant_(m.bias, 0)
 
     def _create_grid(self, shape, device):
-        """Create mesh grid for positional encoding"""
         batchsize, size_x, size_y = shape[0], shape[2], shape[3]
         gridx = torch.linspace(0, 1, size_x, device=device)
         gridy = torch.linspace(0, 1, size_y, device=device)
@@ -215,11 +181,10 @@ class FNOOperator(BaseOperator):
         return grid.repeat(batchsize, 1, 1, 1)
 
     def _augment_data(self, x, y):
-        """Simple data augmentation for PDEs"""
         if not self.use_augmentation or not self.model.training:
             return x, y
         
-        # Random horizontal/vertical flips (if PDE is symmetric)
+                                                                
         if torch.rand(1) > 0.5:
             x = torch.flip(x, dims=[2])
             y = torch.flip(y, dims=[2])
@@ -235,7 +200,7 @@ class FNOOperator(BaseOperator):
         total_samples = 0
         total_accuracy = 0
         
-        # Track epoch number for debug output
+                                             
         if not hasattr(self, 'epoch_num'):
             self.epoch_num = 0
         epoch_num = self.epoch_num
@@ -245,7 +210,7 @@ class FNOOperator(BaseOperator):
             x = batch["x"].to(self.device)
             y = batch["y"].to(self.device)
             
-            # Auto-detect input channels on first batch
+                                                       
             if batch_idx == 0 and not hasattr(self, '_input_channels_verified'):
                 actual_channels = x.shape[1]
                 expected_channels = self.in_channels
@@ -258,36 +223,36 @@ class FNOOperator(BaseOperator):
                     raise ValueError(f"Input has {actual_channels} channels but model expects {expected_channels}")
                 self._input_channels_verified = True
             
-            # Data augmentation
+                               
             x, y = self._augment_data(x, y)
             
-            # Normalize input
+                             
             x = (x - self.input_mean) / self.input_std
             
-            # Add grid
+                      
             grid = self._create_grid(x.shape, x.device)
             x = torch.cat([x, grid], dim=1)
             
-            # Forward pass
+                          
             self.optimizer.zero_grad()
             out = self.model(x)
             loss = F.mse_loss(out, y)
             
-            # Calculate accuracy for training (Li et al. style)
+                                                               
             with torch.no_grad():
-                # Compute per-sample relative L2 error
+                                                      
                 diff = (out - y).view(out.size(0), -1)
                 true = y.view(y.size(0), -1)
-                rel_l2 = (diff.norm(dim=1) / (true.norm(dim=1) + 1e-8))  # shape (batch,)
+                rel_l2 = (diff.norm(dim=1) / (true.norm(dim=1) + 1e-8))                  
                 
-                # Convert to accuracy = 100 * (1 - error)
-                sample_accuracy = (1 - rel_l2) * 100  # shape (batch,)
+                                                         
+                sample_accuracy = (1 - rel_l2) * 100                  
                 
-                # Average over batch
+                                    
                 batch_accuracy = sample_accuracy.mean().item()
                 total_accuracy += batch_accuracy * x.size(0)
                 
-                # Debug: print first batch stats
+                                                
                 if batch_idx == 0 and epoch_num == 0:
                     avg_rel_l2 = rel_l2.mean().item()
                     print(f"\n📊 Accuracy calculation (Li et al. method):")
@@ -295,12 +260,12 @@ class FNOOperator(BaseOperator):
                     print(f"   Accuracy = 100*(1-L2_err) = {batch_accuracy:.1f}%")
                     print(f"   Note: Negative accuracy means L2 error > 1.0")
             
-            # Backward pass
+                           
             loss.backward()
             
-            # Gradient clipping - handle complex gradients from FFT
-            # FFT operations in SpectralConv2d create complex gradients that
-            # cannot be clipped with standard norm operations
+                                                                   
+                                                                            
+                                                             
             real_params = []
             for p in self.model.parameters():
                 if p.grad is not None and not torch.is_complex(p.grad):
@@ -317,7 +282,7 @@ class FNOOperator(BaseOperator):
         avg_train_loss = total_loss / total_samples
         avg_train_accuracy = total_accuracy / total_samples
         
-        # Validation
+                    
         val_loss = float('inf')
         val_accuracy = 0
         val_rel_l2 = 1.0  
@@ -325,7 +290,7 @@ class FNOOperator(BaseOperator):
             val_loss, val_accuracy = self.evaluate(val_loader)
             val_rel_l2 = 1 - val_accuracy/100
             
-            # Early stopping
+                            
             if val_loss < self.best_val_loss:
                 self.best_val_loss = val_loss
                 self.patience_counter = 0
@@ -333,7 +298,7 @@ class FNOOperator(BaseOperator):
             else:
                 self.patience_counter += 1
         
-        # Update learning rate
+                              
         self.scheduler.step()
         
         return {
@@ -348,20 +313,18 @@ class FNOOperator(BaseOperator):
         }
 
     def _calculate_relative_l2_error(self, pred, target):
-        """Calculate relative L2 error as in Li et al."""
         with torch.no_grad():
-            # Flatten to compute norms
+                                      
             diff = (pred - target).view(pred.size(0), -1)
             true = target.view(target.size(0), -1)
             
-            # Compute per-sample relative L2 error
+                                                  
             rel_l2 = diff.norm(dim=1) / (true.norm(dim=1) + 1e-8)
             
             return rel_l2.mean().item()
 
     @torch.no_grad()
     def evaluate(self, data_loader):
-        """Evaluate model on validation/test set"""
         self.model.eval()
         total_loss = 0
         total_accuracy = 0
@@ -371,26 +334,26 @@ class FNOOperator(BaseOperator):
             x = batch["x"].to(self.device)
             y = batch["y"].to(self.device)
             
-            # Normalize
+                       
             x = (x - self.input_mean) / self.input_std
             
-            # Add grid
+                      
             grid = self._create_grid(x.shape, x.device)
             x = torch.cat([x, grid], dim=1)
             
-            # Forward pass
+                          
             out = self.model(x)
             loss = F.mse_loss(out, y)
             
-            # Compute per-sample relative L2 error
+                                                  
             diff = (out - y).view(out.size(0), -1)
             true = y.view(y.size(0), -1)
-            rel_l2 = (diff.norm(dim=1) / (true.norm(dim=1) + 1e-8))  # shape (batch,)
+            rel_l2 = (diff.norm(dim=1) / (true.norm(dim=1) + 1e-8))                  
             
-            # Convert to accuracy = 100 * (1 - error)
-            sample_accuracy = (1 - rel_l2) * 100  # shape (batch,)
+                                                     
+            sample_accuracy = (1 - rel_l2) * 100                  
             
-            # Sum for averaging later
+                                     
             total_loss += loss.item() * out.size(0)
             total_accuracy += sample_accuracy.sum().item()
             total_samples += out.size(0)
@@ -402,11 +365,10 @@ class FNOOperator(BaseOperator):
 
     @torch.no_grad()
     def predict(self, batch):
-        """Make predictions"""
         self.model.eval()
         x = batch["x"].to(self.device)
         
-        # Normalize
+                   
         x = (x - self.input_mean) / self.input_std
         
         grid = self._create_grid(x.shape, x.device)
@@ -435,12 +397,10 @@ class FNOOperator(BaseOperator):
         }
     
     def count_parameters(self):
-        """Count trainable parameters"""
         return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
 
 class FNOEnsembleOperator(FNOOperator):
-    """Ensemble of FNO models for better accuracy (simplified SpecBoost)"""
     
     def __init__(self, device,name="", grid_size=32, n_models=2, **kwargs):
         super().__init__(device, name, grid_size, **kwargs)
@@ -449,16 +409,16 @@ class FNOEnsembleOperator(FNOOperator):
     def setup(self, data_info):
         super().setup(data_info)
         
-        # Create ensemble of models with different initializations
+                                                                  
         self.models = []
         self.optimizers = []
         self.schedulers = []
         
         for i in range(self.n_models):
-            # Set different seed for each model
+                                               
             torch.manual_seed(42 + i)
             
-            # Build model
+                         
             self.build_model()
             self.models.append(self.model)
             
@@ -472,11 +432,10 @@ class FNOEnsembleOperator(FNOOperator):
             scheduler = StepLR(optimizer, step_size=self.step_size, gamma=self.gamma)
             self.schedulers.append(scheduler)
         
-        # Reset seed
+                    
         torch.manual_seed(42)
     
     def train_epoch(self, train_loader, val_loader=None):
-        """Train all models in ensemble"""
         results = []
         
         for i, (model, optimizer, scheduler) in enumerate(zip(self.models, self.optimizers, self.schedulers)):
@@ -487,7 +446,7 @@ class FNOEnsembleOperator(FNOOperator):
             result = super().train_epoch(train_loader, val_loader)
             results.append(result)
         
-        # Average results
+                         
         avg_result = {
             'train_loss': sum(r['train_loss'] for r in results) / len(results),
             'train_accuracy': sum(r['train_accuracy'] for r in results) / len(results),
@@ -502,7 +461,6 @@ class FNOEnsembleOperator(FNOOperator):
     
     @torch.no_grad()
     def evaluate(self, data_loader):
-        """Evaluate ensemble on validation/test set"""
         all_losses = []
         all_accuracies = []
         
@@ -512,12 +470,11 @@ class FNOEnsembleOperator(FNOOperator):
             all_losses.append(loss)
             all_accuracies.append(accuracy)
         
-        # Return average performance
+                                    
         return sum(all_losses) / len(all_losses), sum(all_accuracies) / len(all_accuracies)
     
     @torch.no_grad()
     def predict(self, batch):
-        """Ensemble prediction"""
         predictions = []
         
         for model in self.models:
@@ -525,11 +482,10 @@ class FNOEnsembleOperator(FNOOperator):
             pred = super().predict(batch)
             predictions.append(pred)
         
-        # Average predictions
+                             
         return torch.stack(predictions).mean(dim=0)
     
     def get_model_info(self):
-        """Get ensemble model info"""
         total_params = sum(p.numel() for p in self.models[0].parameters())
         trainable_params = sum(p.numel() for p in self.models[0].parameters() if p.requires_grad)
         
@@ -551,6 +507,5 @@ class FNOEnsembleOperator(FNOOperator):
         }
     
     def count_parameters(self):
-        """Count total trainable parameters in ensemble"""
         params_per_model = sum(p.numel() for p in self.models[0].parameters() if p.requires_grad)
         return params_per_model * self.n_models

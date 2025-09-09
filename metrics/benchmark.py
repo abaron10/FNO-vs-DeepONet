@@ -17,35 +17,24 @@ def rel_l2(p, y):
     return (torch.linalg.vector_norm(p - y) / torch.linalg.vector_norm(y)).item()
 
 def accuracy(p, y, threshold=0.1):
-    """
-    Compute accuracy using Li et al. method:
-    Accuracy = 100 * (1 - relative_L2_error)
-    
-    Note: This is NOT percentage of correct predictions!
-    It represents how close the prediction is to the true solution globally.
-    """
-    # Use the relative L2 error calculation
+                                           
     relative_l2_error = rel_l2(p, y)
     
-    # Li et al. accuracy formula
+                                
     accuracy_value = 100 * (1 - relative_l2_error)
     
     return accuracy_value
 
 def accuracy_pointwise(p, y, threshold=0.15):
-    """
-    Legacy pointwise accuracy (for comparison only)
-    Compute accuracy as percentage of predictions within threshold of true values
-    """
     rel_error = torch.abs(p - y) / (torch.abs(y) + 1e-8)
     return (rel_error < threshold).float().mean().item() * 100
 
 METRICS = dict(
     mse=mse, 
     mae=mae, 
-    relative_l2=rel_l2,  # Explicitly use relative_l2 as the key
+    relative_l2=rel_l2,                                         
     accuracy=accuracy,
-    accuracy_pointwise=accuracy_pointwise  # Keep legacy method for comparison
+    accuracy_pointwise=accuracy_pointwise                                     
 )
 
 class BenchmarkRunner:
@@ -55,7 +44,7 @@ class BenchmarkRunner:
         self.epochs = epochs
         self.vis = Visualizer(dm)
         self.train_history = {}
-        self.accuracy_history = {}  # AGREGADO: Para almacenar historial de accuracy
+        self.accuracy_history = {}                                                  
 
     def run(self):
         results = []
@@ -66,25 +55,25 @@ class BenchmarkRunner:
             m.setup(self.dm.info)
             
             train_losses = []
-            train_accuracies = []      # AGREGADO: Para almacenar accuracy de entrenamiento
-            val_accuracies = []        # AGREGADO: Para almacenar accuracy de validación
+            train_accuracies = []                                                          
+            val_accuracies = []                                                         
             
             t0 = time.time()
             for ep in range(1, self.epochs + 1):
-                # MODIFICADO: Pasar tanto train como test loader
+                                                                
                 epoch_metrics = m.train_epoch(self.dm.train, self.dm.test)
                 
-                # MODIFICADO: Manejar tanto el formato viejo (float) como el nuevo (dict)
+                                                                                         
                 if isinstance(epoch_metrics, dict):
                     train_losses.append(epoch_metrics['train_loss'])
                     train_accuracies.append(epoch_metrics['train_accuracy'])
                     val_accuracies.append(epoch_metrics.get('val_accuracy', 0))
                     tr_loss = epoch_metrics['train_loss']
                 else:
-                    # Compatibilidad hacia atrás
+                                                
                     tr_loss = epoch_metrics
                     train_losses.append(tr_loss)
-                    train_accuracies.append(0)  # Sin datos de accuracy
+                    train_accuracies.append(0)                         
                     val_accuracies.append(0)
                 
                 if ep % 5 == 0:
@@ -98,18 +87,18 @@ class BenchmarkRunner:
             wall = time.time() - t0
             
             self.train_history[model_name] = train_losses
-            # AGREGADO: Almacenar historial de accuracy
+                                                       
             self.accuracy_history[model_name] = {
                 'train': train_accuracies,
                 'validation': val_accuracies
             }
             
-            # Evaluate metrics on test set
+                                          
             metrics = m.eval(self.dm.test, METRICS)
             metrics["wall_sec"] = wall
             metrics["avg_time_per_epoch"] = wall / self.epochs
             
-            # Verify accuracy calculation is consistent
+                                                       
             if 'relative_l2' in metrics and 'accuracy' in metrics:
                 expected_accuracy = 100 * (1 - metrics['relative_l2'])
                 if abs(expected_accuracy - metrics['accuracy']) > 0.1:
@@ -117,10 +106,10 @@ class BenchmarkRunner:
                     print(f"   Relative L2: {metrics['relative_l2']:.4f}")
                     print(f"   Expected accuracy: {expected_accuracy:.1f}%")
                     print(f"   Reported accuracy: {metrics['accuracy']:.1f}%")
-                    # Fix it
+                            
                     metrics['accuracy'] = expected_accuracy
             
-            # Print final metrics summary
+                                         
             print(f"\n  Final metrics (Li et al. method):")
             print(f"  Relative L2 error: {metrics.get('relative_l2', 'N/A'):.4f}")
             print(f"  Accuracy (100*(1-L2)): {metrics.get('accuracy', 'N/A'):.1f}%")
@@ -141,7 +130,6 @@ class BenchmarkRunner:
         return results
 
     def save_results(self, results, output_path="/Users/andres.baron/Documents/Computer-Science/Tesis/Laboratory/visualizer/benchmark_results.json"):
-        """Save all results to JSON"""
         clean_results = []
         for r in results:
             clean_model_info = r["model_info"].copy()
@@ -154,7 +142,7 @@ class BenchmarkRunner:
                     elif isinstance(v, (list, tuple)) and len(v) > 0 and hasattr(v[0], 'item'):
                         arch[k] = [x.item() if hasattr(x, 'item') else x for x in v]
             
-            # Add note about accuracy calculation method
+                                                        
             metrics_with_note = r["metrics"].copy()
             metrics_with_note["accuracy_method"] = "Li et al. (100*(1-relative_L2_error))"
             
@@ -176,7 +164,7 @@ class BenchmarkRunner:
                 model: [float(loss) for loss in losses] 
                 for model, losses in self.train_history.items()
             },
-            # AGREGADO: Incluir historial de accuracy en el JSON
+                                                                
             "accuracy_history": {
                 model: {
                     split: [float(acc) for acc in accs]
