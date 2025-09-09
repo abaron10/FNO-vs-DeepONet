@@ -98,7 +98,7 @@ class FNOChartCreator:
         accuracy_dir = output_path / 'individual_accuracy_plots'
         accuracy_dir.mkdir(exist_ok=True)
         
-        print(f"\n📈 Creating individual accuracy plots in: {accuracy_dir}")
+        print(f"\nCreating individual accuracy plots in: {accuracy_dir}")
         
         for i, (model_name, acc_data) in enumerate(accuracy_history.items()):
             clean_name = model_name.replace('_64x64', '')
@@ -540,8 +540,8 @@ def create_fno_charts(json_file_path, output_dir='./fno_charts', show_plots=Fals
         print(f"   Parameters: {best_model['model_info']['parameters']:,}")
         print(f"   Training Time: {best_model['metrics'].get('wall_sec', 0)/60:.1f} min")
     
-    print(f"\n✅ Charts created successfully!")
-    print(f"📊 Files for HTML:")
+    print(f"\nCharts created successfully!")
+    print(f"Files for HTML:")
     html_charts = ['training_curves', 'training_time_vs_accuracy', 'relative_l2_error', 'model_efficiency']
     for chart_name in html_charts:
         if chart_name in created_files:
@@ -550,7 +550,7 @@ def create_fno_charts(json_file_path, output_dir='./fno_charts', show_plots=Fals
                                                      
     accuracy_dir = output_path / 'individual_accuracy_plots'
     if accuracy_dir.exists():
-        print(f"\n📈 Individual accuracy plots saved in: {accuracy_dir}")
+        print(f"\nIndividual accuracy plots saved in: {accuracy_dir}")
     
     return created_files
 

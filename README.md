@@ -1,57 +1,60 @@
-# Darcy Flow FNO (Fourier Neural Operator)
+# Benchmarks of Neural Operators: **FNO** vs **DeepONet**
 
-This project implements a Fourier Neural Operator (FNO) model for solving Darcy flow problems. The implementation uses PyTorch and the neuraloperator library.
+> A standardized and visual benchmarking platform to evaluate accuracy, efficiency, and reproducibility of **neural operators** on the **Darcy flow (64×64)** benchmark.  
 
-## Setup
+![status](https://img.shields.io/badge/status-active-success) ![python](https://img.shields.io/badge/python-3.10%2B-blue) ![license](https://img.shields.io/badge/license-MIT-green)
 
-1. Create a virtual environment (recommended):
+---
+
+## Novelty of this project
+
+This repository is not just a collection of scripts: it is a **benchmarking platform** built with **software engineering best practices** to compare neural operators in a **fair, repeatable, and visual** way.
+
+Key contributions:
+
+- **Full standardization of the experimental cycle**
+    - Same *dataset loader*, *normalization*, *metrics*, and *seeds* for all models.
+    - Unified API (`BaseOperator`) → easily add new operators without breaking pipelines.
+
+- **Consistent metrics and reporting**
+    - MSE, MAE, **Rel-L²**, and **Accuracy = 100·(1−Rel-L²)**.
+    - Results stored in CSV/JSON + scripts for plots and paper-ready tables.
+
+- **Reproducible and visual pipeline**
+    - Declarative configs (YAML/CLI), seed logging, automatic figure generation (training/validation curves, *time vs accuracy*, *model efficiency*, *relative L²*, and *compact prediction rows*).
+
+---
+
+
+## Models included
+
+- **FNO (Fourier Neural Operator)**
+    - Truncated spectral convolution (modes \(k_{\max}\)), 1×1 projection, **GELU** activation, *weight decay*, *StepLR*.
+    - Variants: *Standard*, *Smaller (shared weights)*, *Ensemble*, *Enhanced Smaller*, *Optimized Target*.
+
+- **DeepONet (branch–trunk MLP)**
+    - **Branch (MLP)** processes sensors of \(k(x)\).
+    - **Trunk (MLP)** encodes coordinates \((x,y)\).
+    - Dot product \( \langle b, t \rangle + b_0 \).
+    - Sensor strategies: *random*, *uniform*, *chebyshev*, *adaptive*.
+    - Advanced variants: **MSFF** (multi-scale Fourier features), **SWA**, optional **Sobolev loss**.
+
+
+## Installation
+
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows use: venv\Scripts\activate
-```
+# 1) Clone
+git clone https://github.com/<your-username>/FNO-vs-DeepONet.git
+cd FNO-vs-DeepONet
 
-2. Install dependencies:
-```bash
+# 2) Create environment
+python -m venv .venv
+# macOS/Linux:
+source .venv/bin/activate
+# Windows (PowerShell):
+# .\.venv\Scripts\Activate.ps1
+
+# 3) Dependencies
+pip install -U pip
 pip install -r requirements.txt
-```
 
-## Usage
-
-Run the training script:
-```bash
-python darcy_flow_fno.py
-```
-
-The script will:
-1. Load the Darcy flow dataset
-2. Create and initialize the FNO model
-3. Train the model for 11 epochs
-4. Save the training progress plot as 'loss_plot.png'
-5. Save the trained model as 'darcy_flow_fno_model.pth'
-
-## Model Configuration
-
-The FNO model is configured with the following parameters:
-- Input channels: 1
-- Output channels: 1
-- Hidden channels: 32
-- Lifting channels: 32
-- Projection channels: 32
-- Number of modes: (16, 16)
-- Number of layers: 3
-
-## Datasets
-
-The script uses the `load_darcy_flow_small` dataset with:
-- 100 training samples
-- 50 test samples
-- Batch size: 4
-- Test resolution: 16
-
-## Requirements
-
-- Python 3.7+
-- PyTorch 2.0.0+
-- neuraloperator 0.4.0+
-- NumPy 1.21.0+
-- Matplotlib 3.4.0+ 
